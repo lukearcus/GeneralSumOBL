@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
 
 def gen_belief(p1, p2):
-    belief_1 = np.zeros([6,3])
-    belief_2 = np.zeros([6,3])
+    belief_1 = np.zeros([6,3])+1
+    belief_2 = np.zeros([6,3])+1
     for i in range(10000):
         game.start_game()
         player=p1
@@ -86,13 +86,15 @@ num_lvls =4
 beliefs = []
 p1 = vanilla_rl(0,6,2)
 p2 = vanilla_rl(0,6,2)
-Q_mats = [(p1.Q_mat,p2.Q_mat)]
+Q_mats = [(np.copy(p1.Q_mat),np.copy(p2.Q_mat))]
 for lvl in range(num_lvls):
     b1,b2 = gen_belief(p1,p2)
     beliefs.append(b2)
     for i in range(1000):
         play_obl_game(p1,p2,game,b1,b2)
-    Q_mats.append((p1.Q_mat,p2.Q_mat))
+        p1.eps = 1-i/1000
+        p2.eps = 1-i/1000
+    Q_mats.append((np.copy(p1.Q_mat),np.copy(p2.Q_mat)))
     p1.reset_Q()
     p2.reset_Q()
 b1,b2 = gen_belief(p1,p2)
