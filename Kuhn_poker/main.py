@@ -47,7 +47,7 @@ def play_game(p1, p2, game):
     p2.reset()
     return rewards
 
-def play_obl_game(p1, p2, game, b1, b2):
+def play_obl_game(p1, p2, game):
     game.start_game()
     player=p1
     while not game.ended:
@@ -59,21 +59,24 @@ def play_obl_game(p1, p2, game, b1, b2):
             player = p1
     rewards = game.end_game()
     if game.curr_bets[0] == game.curr_bets[1]:
-        #if len(p1.state_hist) == 2:
-        #    probs_1 = b1[p1.state]
-        #    fict_s1 = np.argmax(np.random.multinomial(1, pvals = probs_1))
-        #    if game.cards[0] > fict_s1:
-        #        p1.get_reward(max(rewards))
-        #    else:
-        #        p1.get_reward(min(rewards))
-        #else:
-        p1.get_reward(rewards[0])
-        probs_2 = b2[p2.state]
-        fict_s2 = np.argmax(np.random.multinomial(1, pvals = probs_2)) + 1
-        if game.cards[1] > fict_s2:
-            p2.get_reward(max(rewards))
+        if p1.belief is not None and len(p1.state_hist) == 2:
+            probs_1 = p1.belief[p1.state]
+            fict_s1 = np.argmax(np.random.multinomial(1, pvals = probs_1))
+            if game.cards[0] > fict_s1:
+                p1.get_reward(max(rewards))
+            else:
+                p1.get_reward(min(rewards))
         else:
-            p2.get_reward(min(rewards))
+            p1.get_reward(rewards[0])
+        if p2.belief is not None:
+            probs_2 = p2.belief[p2.state]
+            fict_s2 = np.argmax(np.random.multinomial(1, pvals = probs_2)) + 1
+            if game.cards[1] > fict_s2:
+                p2.get_reward(max(rewards))
+            else:
+                p2.get_reward(min(rewards))
+        else:
+            p2.get_reward(rewards[1])
     else:
         p1.get_reward(rewards[0])
         p2.get_reward(rewards[1])
@@ -82,23 +85,40 @@ def play_obl_game(p1, p2, game, b1, b2):
 
 #p2 = human()
 game = Kuhn_Poker()
-num_lvls =4
+num_lvls =1
 beliefs = []
-p1 = vanilla_rl(0,6,2)
-p2 = vanilla_rl(0,6,2)
+
+#p1 = vanilla_rl(0,6,2, learning_rate=0, T=1)
+#p1.Q_mat[2,0] = 10
+#p1.Q_mat[0,1] = 10
+#p1 = vanilla_rl(0,6,2,T=1)
+#p2 = vanilla_rl(0,6,2, T=1)
+p1 = OBL(0,6,2, T=1)
+p2 = OBL(0,6,2, T=1)
+
 Q_mats = [(np.copy(p1.Q_mat),np.copy(p2.Q_mat))]
+Q_change = []
 for lvl in range(num_lvls):
     b1,b2 = gen_belief(p1,p2)
-    beliefs.append(b2)
+    beliefs.append((b1,b2))
+    if p1.belief is not None:
+        p1.set_belief(b1)
+    if p2.belief is not None:
+        p2.set_belief(b2)
+    q1_old = np.copy(p1.Q_mat)
+    q2_old = np.copy(p2.Q_mat)
     for i in range(1000):
-        play_obl_game(p1,p2,game,b1,b2)
+        play_obl_game(p1,p2,game)
+        Q_change.append((np.linalg.norm(q1_old-p1.Q_mat), np.linalg.norm(q2_old-p2.Q_mat)))
+        q1_old = np.copy(p1.Q_mat)
+        q2_old = np.copy(p2.Q_mat)
         p1.eps = 1-i/1000
         p2.eps = 1-i/1000
     Q_mats.append((np.copy(p1.Q_mat),np.copy(p2.Q_mat)))
     p1.reset_Q()
     p2.reset_Q()
 b1,b2 = gen_belief(p1,p2)
-beliefs.append(b2)
+beliefs.append((b1,b2))
 #reward_hist = []
 #for i in range(1000):
 #   reward_hist.append(play_game())
@@ -124,9 +144,13 @@ beliefs.append(b2)
 #reward_smoothed = gaussian_filter1d(reward_hist, sigma=1)
 #plt.plot(reward_smoothed)
 #plt.show()
-fig, axs = plt.subplots(num_lvls+1,3)
+
+plt.plot(Q_change)
+plt.show()
+fig, axs = plt.subplots(num_lvls+1,4)
 for level in range(num_lvls+1):
-    axs[level,2].imshow(beliefs[level])
+    axs[level,2].imshow(beliefs[level][0])
+    axs[level,3].imshow(beliefs[level][1])
     x_label_list = ["","bet/call","check/fold"]
     y_label_list = ["","no raise 1", "no raise 2", "no raise 3", "raised 1", "raised 2", "raised 3"]
     axs[level,0].imshow(Q_mats[level][0])

@@ -3,6 +3,7 @@ import random
 
 class player:
     state = None
+    belief = None
 
     def __init__(self):
         pass
@@ -39,7 +40,7 @@ class human(player):
         print("You got " + str(reward) + " coins")
 
 class vanilla_rl(player):
-    
+
     def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3, T=0.01):
         self.Q_mat = np.ones((num_states, num_actions))*init_q
         self.init_Q_mat = np.copy(self.Q_mat)
@@ -75,6 +76,7 @@ class vanilla_rl(player):
         else:
             q_vals -= np.max(q_vals)
             q_vals = np.exp(self.temp*q_vals)
+            q_vals /= np.sum(q_vals)
             sel_act = np.argmax(np.random.multinomial(1, pvals=q_vals))
         self.act_hist.append(sel_act)
         self.act = sel_act
@@ -93,10 +95,11 @@ class vanilla_rl(player):
             if f:
                 update = r - self.Q_mat[s,a]
             else:
-                update = r - self.Q_mat[s,a] + np.max(self.Q_mat[self.state_hist[i-1]])
+                update = r - self.Q_mat[s,a] + self.d_f*np.max(self.Q_mat[self.state_hist[i-1]])
             self.Q_mat[s, a] += self.lr * update
 
 class OBL(vanilla_rl):
-    belief = None
+    belief = 0
 
-    #def get_rewards(self, reward):
+    def set_belief(self, new_belief):
+        self.belief = new_belief
