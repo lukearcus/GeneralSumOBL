@@ -19,11 +19,14 @@ class player:
         pass
 
 class human(player):
+    Q_mat = 0
+    state_hist=[]
 
     def observe(self, observation):
         print("Current pot is: " + str(observation[1]))
         print("Your card is: " + str(observation[0]))
         self.state = observation
+        self.state_hist.append(self.state)
 
     def action(self):
         print("Choose an action: ")
@@ -36,7 +39,7 @@ class human(player):
         sel_act = input()
         return sel_act
     
-    def get_rewards(self, reward):
+    def get_reward(self, reward):
         print("You got " + str(reward) + " coins")
 
 class vanilla_rl(player):

@@ -88,19 +88,22 @@ game = Kuhn_Poker()
 num_lvls =1
 beliefs = []
 
+p1 = human()
+p2 = human()
 #p1 = vanilla_rl(0,6,2, learning_rate=0, T=1)
 #p1.Q_mat[2,0] = 10
 #p1.Q_mat[0,1] = 10
 #p1 = vanilla_rl(0,6,2,T=1)
 #p2 = vanilla_rl(0,6,2, T=1)
-p1 = OBL(0,6,2, T=1)
-p2 = OBL(0,6,2, T=1)
+#p1 = OBL(0,6,2, T=1)
+#p2 = OBL(0,6,2, T=1)
 
 Q_mats = [(np.copy(p1.Q_mat),np.copy(p2.Q_mat))]
 Q_change = []
 for lvl in range(num_lvls):
-    b1,b2 = gen_belief(p1,p2)
-    beliefs.append((b1,b2))
+    if p1.belief is not None or p2.belief is not None:
+        b1,b2 = gen_belief(p1,p2)
+        beliefs.append((b1,b2))
     if p1.belief is not None:
         p1.set_belief(b1)
     if p2.belief is not None:
