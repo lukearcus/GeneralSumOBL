@@ -48,6 +48,9 @@ def play_game(p1, p2, game):
     return rewards
 
 def play_obl_game(p1, p2, game):
+    """
+    This is a mess, fix at some point
+    """
     game.start_game()
     player=p1
     while not game.ended:
@@ -59,13 +62,43 @@ def play_obl_game(p1, p2, game):
             player = p1
     rewards = game.end_game()
     if game.curr_bets[0] == game.curr_bets[1]:
-        if p1.belief is not None and len(p1.state_hist) == 2:
-            probs_1 = p1.belief[p1.state]
-            fict_s1 = np.argmax(np.random.multinomial(1, pvals = probs_1))
-            if game.cards[0] > fict_s1:
-                p1.get_reward(max(rewards))
-            else:
-                p1.get_reward(min(rewards))
+        if p1.belief is not None:
+            for state in p1.state_hist: 
+                probs = p1.belief[state]
+                fict = np.argmax(np.random.multinomial(1, pvals = probs))
+                p1.state = state
+                act = p1.action()
+                if state < 3:
+                    if act == "bet":
+                        p2.state = 2+fict
+                        p2_act = p2.action()
+                        if p2_act == "bet":
+                            if game.cards[0] > fict:
+                                p1.Q_update(state, p1.act, 2, -1)
+                            else:
+                                p1.Q_update(state, p1.act, -2, -1)
+                        else:
+                            p1.Q_update(state, p1.act, 1, -1)
+                    else:
+                        p2.state = fict
+                        p2_act = p2.action()
+                        if p2_act == "bet":
+                            p1.Q_update(state, p1.act, 0, 3+state)
+                        else:
+                            if game.cards[0] > fict:
+                                p1.Q_update(state, p1.act, 1, -1)
+                            else:
+                                p1.Q_update(state, p1.act, -1, -1)
+                else:
+                    if act == "fold":
+                        p1.Q_update(state, p1.act, -1, -1)
+                    else:
+                        if game.cards[0] > fict:
+                            p1.Q_update(state, p1.act, 2, -1)
+                        else:
+                            p1.Q_update(state, p1.act, -2, -1)
+
+
         else:
             p1.get_reward(rewards[0])
         if p2.belief is not None:
@@ -88,15 +121,15 @@ game = Kuhn_Poker()
 num_lvls =1
 beliefs = []
 
-p1 = human()
-p2 = human()
+#p1 = human()
+#p2 = human()
 #p1 = vanilla_rl(0,6,2, learning_rate=0, T=1)
 #p1.Q_mat[2,0] = 10
 #p1.Q_mat[0,1] = 10
 #p1 = vanilla_rl(0,6,2,T=1)
 #p2 = vanilla_rl(0,6,2, T=1)
-#p1 = OBL(0,6,2, T=1)
-#p2 = OBL(0,6,2, T=1)
+p1 = OBL(0,6,2, T=1)
+p2 = OBL(0,6,2, T=1)
 
 Q_mats = [(np.copy(p1.Q_mat),np.copy(p2.Q_mat))]
 Q_change = []

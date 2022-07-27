@@ -85,21 +85,25 @@ class vanilla_rl(player):
         self.act = sel_act
         return acts[sel_act]
     
+    def Q_update(self, s, a, r, s_prime):
+        if s_prime == -1:
+            update = r - self.Q_mat[s,a]
+        else:
+            update = r - self.Q_mat[s,a] + self.d_f*np.max(self.Q_mat[s_prime])
+        self.Q_mat[s, a] += self.lr * update
+
     def get_reward(self, reward):
         self.state_hist.reverse()
         self.act_hist.reverse()
         r_hist = [0 for i in self.act_hist]
         r_hist[0] = reward
-        finals = [False for i in self.act_hist]
-        finals[0] = True
-        hist = zip(self.state_hist, self.act_hist, r_hist, finals)
+        next_states = [s for s in self.state_hist]
+        next_states.pop(0)
+        next_states.append(-1)
+        hist = zip(self.state_hist, self.act_hist, r_hist, next_states)
         for i, elem in enumerate(hist):
-            s, a, r, f = elem
-            if f:
-                update = r - self.Q_mat[s,a]
-            else:
-                update = r - self.Q_mat[s,a] + self.d_f*np.max(self.Q_mat[self.state_hist[i-1]])
-            self.Q_mat[s, a] += self.lr * update
+            s, a, r, s_prime = elem
+            self.Q_update(s, a, r, s_prime)
 
 class OBL(vanilla_rl):
     belief = 0
