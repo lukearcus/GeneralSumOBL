@@ -20,36 +20,38 @@ class Kuhn_Poker:
         cards_available = [ i+1 for i in range(self.num_players+1)]
         random.shuffle(cards_available)
         self.cards = cards_available[:self.num_players]
-        self.turn = 0
         self.curr_player = 0
+        self.rewards = [0 for i in range(self.num_players)]
         self.ended = False
         self.folded = [False for i in range(self.num_players)]
         self.checked = [False for i in range(self.num_players)]
         self.betted = [False for i in range(self.num_players)]
 
     def observe(self):
-        return self.cards[self.curr_player], self.curr_bets
+        if not self.ended:
+            return self.cards[self.curr_player], self.curr_bets, 0
+        else: 
+            return -1, None, self.rewards[self.curr_player]
 
     def action(self, act):
-        if act=="bet":
-            self.curr_bets[self.curr_player] +=1
-            self.betted[self.curr_player] = True
-        if act=="check":
-            if any(self.betted):
+        if not self.ended:
+            if act=="bet":
+                self.curr_bets[self.curr_player] +=1
+                self.betted[self.curr_player] = True
+            if act=="check":
+                if any(self.betted):
+                    self.folded[self.curr_player] = True
+                else:
+                    self.checked[self.curr_player] = True
+            if act=="fold":
                 self.folded[self.curr_player] = True
-            else:
-                self.checked[self.curr_player] = True
-        if act=="fold":
-            self.folded[self.curr_player] = True
-        if all(self.checked):
-            self.find_winner()
-        elif all(p[0] or p[1] for p in zip(self.betted, self.folded)):
-            self.find_winner()
-        else:
-            self.turn += 1
-            self.curr_player += 1
-            if self.curr_player == self.num_players:
-                self.curr_player = 0
+            if all(self.checked):
+                self.find_winner()
+            elif all(p[0] or p[1] for p in zip(self.betted, self.folded)):
+                self.find_winner()
+        self.curr_player += 1
+        if self.curr_player == self.num_players:
+            self.curr_player = 0
 
     def find_winner(self):
         if any(self.betted):
@@ -63,13 +65,10 @@ class Kuhn_Poker:
         best_card = max(valid_cards)
         self.winner = self.cards.index(best_card)
         self.ended = True
-
-    def end_game(self):
         losses = [-bet for bet in self.curr_bets]
         winnings = sum(self.curr_bets)
-        rewards = losses
-        rewards[self.winner] += winnings
-        return rewards
+        self.rewards = losses
+        self.rewards[self.winner] += winnings
 
 class Kuhn_Poker_int_io(Kuhn_Poker):
     

@@ -42,7 +42,7 @@ class human(player):
     def get_reward(self, reward):
         print("You got " + str(reward) + " coins")
 
-class vanilla_rl(player):
+class Q_learn(player):
 
     def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3, T=0.01):
         self.Q_mat = np.ones((num_states, num_actions))*init_q
@@ -57,16 +57,32 @@ class vanilla_rl(player):
     def reset(self):
         self.state_hist = []
         self.act_hist = []
+        self.next_state_hist = []
+        self.r_hist = []
+        self.tuple_hist = []
 
     def reset_Q(self):
         self.Q_mat = np.copy(self.init_Q_mat)
 
     def observe(self, observation):
-        if observation[1][0] == observation[1][1]:
-            self.state = observation[0] - 1
+        if observation[0] == -1:
+            self.state = -1
         else:
-            self.state = 2 + observation[0]
+            if observation[1][0] == observation[1][1]:
+                self.state = observation[0] - 1
+            else:
+                self.state = 2 + observation[0]
+        reward = observation[2]
+        if len(self.state_hist) > 0:
+            self.next_state_hist.append(self.state)
+            s = self.state_hist[-1]
+            a = self.act_hist[-1]
+            r = reward
+            s_prime = self.state
+            self.tuple_hist.append((s, a, r, s_prime))
+            self.single_Q_update(s, a, r, s_prime)
         self.state_hist.append(self.state)
+        self.r_hist.append(reward)
 
     def action(self):
         if self.state < 3:
@@ -85,28 +101,77 @@ class vanilla_rl(player):
         self.act = sel_act
         return acts[sel_act]
     
-    def Q_update(self, s, a, r, s_prime):
+    def single_Q_update(self, s, a, r, s_prime):
         if s_prime == -1:
             update = r - self.Q_mat[s,a]
         else:
             update = r - self.Q_mat[s,a] + self.d_f*np.max(self.Q_mat[s_prime])
         self.Q_mat[s, a] += self.lr * update
 
-    def get_reward(self, reward):
-        self.state_hist.reverse()
-        self.act_hist.reverse()
-        r_hist = [0 for i in self.act_hist]
-        r_hist[0] = reward
-        next_states = [s for s in self.state_hist]
-        next_states.pop(0)
-        next_states.append(-1)
-        hist = zip(self.state_hist, self.act_hist, r_hist, next_states)
-        for i, elem in enumerate(hist):
+    def train_all(self):
+        for i, elem in enumerate(self.tuple_hist):
             s, a, r, s_prime = elem
-            self.Q_update(s, a, r, s_prime)
+            self.single_Q_update(s, a, r, s_prime)
 
-class OBL(vanilla_rl):
+class OBL(Q_learn):
     belief = 0
+    
+    def single_Q_update(self, s, a, _1, _2):
+        """
+        Overwrite Q_update to do OBL
+        """
+        probs = self.belief[s]
+        fict = np.argmax(np.random.multinomial(1, pvals = probs))
 
     def set_belief(self, new_belief):
         self.belief = new_belief
+
+class Q_actor_critic(Q_learn):
+     
+    def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
+        self.pi = np.ones((num_states, num_actions))*(1/num_actions)
+        self.critic = np.ones((num_states, num_actions))*init_q
+        self.lr = learning_rate
+        self.d_f = discount_factor
+        self.eps = exploration_rate
+        random.seed(1)
+        self.reset()
+
+    def action(self):
+        if self.state < 3:
+            acts = ["bet", "check"]
+        else:
+            acts = ["bet", "fold"]
+        p_vals = np.copy(self.pi[self.state,:])
+        if random.random() < self.eps:
+            sel_act = np.random.randint(len(p_vals))
+        else:
+            sel_act = np.argmax(np.random.multinomial(1, pvals=p_vals))
+        self.act_hist.append(sel_act)
+        self.act = sel_act
+        return acts[sel_act]
+    
+    def single_Q_update(self, s, a, r, s_prime):
+        """
+        Overwrite Q_update to do actor-critic
+        """
+        next_p_vals = self.pi[s_prime]
+        theta = self.pi[s, 0] # assume 2 actions with probs theta and 1-theta
+        Q_w = self.critic[s, a]
+        if a == 0:
+            grad_log_theta = 1/theta
+        else:
+            grad_log_theta = -1/(1-theta)
+        policy_update = Q_w*grad_log_theta
+        print(self.pi)
+        theta_new = min(max(0.01,theta + self.lr * policy_update), 0.99)
+        self.pi[s,0] = theta_new
+        self.pi[s,1] = 1-theta_new
+        
+        if s_prime != -1:
+            a_prime = np.argmax(np.random.multinomial(1, pvals=next_p_vals))
+            delta_t = r + self.d_f*self.critic[s_prime, a_prime] - self.critic[s, a]
+        else:
+            delta_t = r - self.critic[s,a]
+        critic_update = delta_t
+        self.critic[s, a] += self.lr*critic_update
