@@ -73,12 +73,15 @@ class Kuhn_Poker:
 class Kuhn_Poker_int_io(Kuhn_Poker):
     
     def observe(self):    
-        card, game_pot = super().observe()
-        pot = game_pot.copy()
-        poss_pots = list(product([1,2],repeat=self.num_players-1))
-        pot.pop(self.curr_player)
-        pot_ind = poss_pots.index(tuple(pot))
-        return pot_ind*(self.num_players+1)+card-1
+        card, game_pot, reward = super().observe()
+        if card != -1:
+            pot = game_pot.copy()
+            poss_pots = list(product([1,2],repeat=self.num_players-1))
+            pot.pop(self.curr_player)
+            pot_ind = poss_pots.index(tuple(pot))
+            return pot_ind*(self.num_players+1)+card-1, reward
+        else:
+            return -1, reward
 
     def action(self, act):
         if act == 0:

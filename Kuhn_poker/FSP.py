@@ -13,7 +13,7 @@ def count_based_SL(SL_mem):
             pi[i] = np.ones(s.shape)/s.size
     return pi
 
-def RL(RL_mem,Q, k):
+def RL(RL_mem,Q, V, k, thetas):
     gamma = 0.9
     lr=0.05/(1+0.003*np.sqrt(k))
     T = 1/(1+0.2*np.sqrt(k))
@@ -28,12 +28,41 @@ def RL(RL_mem,Q, k):
     for i, s in enumerate(Q):
         beta[i, :] = np.exp(Q[i]/T)
         beta[i, :] /= np.sum(beta[i])
-    return beta, Q
+    return beta, Q, V, thetas
+
+
+def adv_actor_critic(RL_mem, Q, V, k, thetas):
+    gamma=0.9
+    lr=0.05/(1+0.003*np.sqrt(k))
+
+    RL_buff = random.choices(RL_mem, k=min(300, len(RL_mem)))
+    for elem in RL_buff:
+        theta = thetas[elem["s"]]
+        if elem["a"] == 0:
+            grad_log_theta = 1/theta
+        else:
+            grad_log_theta = -1/(1-theta)
+        if elem["s'"] == -1:
+            advantage = elem["r"] - V[elem["s"]]
+        else:
+            advantage = elem["r"] - V[elem["s"]] + gamma*V[elem["s'"]]
+        theta_update = grad_log_theta*advantage
+        thetas[elem["s"]] = np.minimum(np.maximum(theta + lr*theta_update, 1e-5),1-1e-5)
+    
+    for elem in RL_buff:
+        if elem["s'"] == -1:
+            update = elem["r"] - V[elem["s"]]
+        else:
+            update = elem["r"] - V[elem["s"]] + gamma*V[elem["s'"]]
+        V[elem["s"]] += lr*update
+    beta = np.array([thetas, 1-thetas]).T
+    
+    return beta, Q, V, thetas
 
 
 class FSP:
 
-    def __init__(self, _game, _RL_algo=RL, _SL_algo=count_based_SL, max_iters=100, m=50, n=50):
+    def __init__(self, _game, _RL_algo=adv_actor_critic, _SL_algo=count_based_SL, max_iters=100, m=50, n=50):
         self.game = _game
         self.RL = _RL_algo
         self.SL = _SL_algo
@@ -74,6 +103,8 @@ class FSP:
         mem_RL = [[] for i in range(self.num_players)]
         mem_SL = [[] for i in range(self.num_players)]
         Q = [np.zeros(pi_1[i].shape) for i in range(self.num_players)]
+        V = [np.zeros(self.game.num_states[p]) for p in range(self.num_players)]
+        thetas = [np.ones(self.game.num_states[p])/self.game.num_actions[p] for p in range(self.num_players)]
         exploitability = []
         for j in range(2,self.max_iters):
             eta_j = 1/j
@@ -84,13 +115,14 @@ class FSP:
             for p in range(self.num_players):
                 mem_RL[p] = self.update_RL_mem(mem_RL[p], D[p], p)
                 mem_SL[p] = self.update_SL_mem(mem_SL[p], D[p], p)
-                new_b, Q[p] = self.RL(mem_RL[p],Q[p],j)
+                new_b, Q[p], V[p], thetas[p] = self.RL(mem_RL[p],Q[p],V[p],j, thetas[p])
                 new_beta.append(new_b)
                 new_pi.append(self.SL(mem_SL[p]))
             pi.append(new_pi)
             beta.append(new_beta)
             if j%self.est_exploit_freq == 0:
                 exploitability.append(self.est_exploitability(new_beta, new_pi))
+        import pdb; pdb.set_trace()
         return pi[-1], exploitability, (pi, beta, Q, D)
 
     def update_RL_mem(self, old_mem, data, p):
@@ -119,16 +151,19 @@ class FSP:
         while not self.game.ended:
             curr_p = self.game.curr_player
             curr_p_strat = strat[curr_p]
-            obs = self.game.observe()
+            obs, r = self.game.observe()
             probs = curr_p_strat[obs,:]
             action = np.argmax(np.random.multinomial(1, pvals= probs))
             self.game.action(action)
-            buffer[curr_p].append({'s':obs,'a':action,'r':0,"s'":-1})
+            buffer[curr_p].append({'s':obs,'a':action,'r':r,"s'":-1})
             if len(buffer[curr_p]) > 1:
                 buffer[curr_p][-2]["s'"] = obs
-        rewards = self.game.end_game()
-        for p in range(self.num_players):
-            buffer[p][-1]["r"]=rewards[p]
+         
+        for i in range(self.num_players):
+            player = self.game.curr_player
+            _, r = self.game.observe()
+            self.game.action(None)
+            buffer[player][-1]["r"] = r
         return buffer
 
     def est_exploitability(self, beta, pi):
