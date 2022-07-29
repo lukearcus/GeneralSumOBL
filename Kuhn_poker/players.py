@@ -126,10 +126,11 @@ class OBL(Q_learn):
     def set_belief(self, new_belief):
         self.belief = new_belief
 
-class Q_actor_critic(Q_learn):
+class actor_critic(Q_learn):
      
     def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
         self.pi = np.ones((num_states, num_actions))*(1/num_actions)
+        self.thetas = np.ones((num_states, 1))*(1/num_actions)
         self.critic = np.ones((num_states, num_actions))*init_q
         self.lr = learning_rate
         self.d_f = discount_factor
@@ -150,28 +151,81 @@ class Q_actor_critic(Q_learn):
         self.act_hist.append(sel_act)
         self.act = sel_act
         return acts[sel_act]
-    
+
+    def calc_grad(self, s, a):
+        raise NotImplementedError
+
+    def set_pi(self):
+        raise NotImplementedError
+
+    def calc_delta(self, s, a, r, s_prime):
+        return NotImplementedError
+
     def single_Q_update(self, s, a, r, s_prime):
         """
         Overwrite Q_update to do actor-critic
         """
-        next_p_vals = self.pi[s_prime]
+        #A_w = self.critic[s, a]
+        A_w = self.calc_delta(s,a,r,s_prime)
+        grad_log_theta = self.calc_grad(s, a)
+        policy_update = A_w*grad_log_theta
+        
+        self.thetas = np.minimum(np.maximum(1e-5, self.thetas + self.lr * policy_update), 1-1e-5)
+        
+        self.set_pi()
+        
+
+        critic_update = self.calc_delta(s, a, r, s_prime)
+        self.critic[s, a] += self.lr*critic_update
+
+class actor_critic_lin_pol(actor_critic):
+
+    def calc_grad(self, s, a):
         theta = self.pi[s, 0] # assume 2 actions with probs theta and 1-theta
-        Q_w = self.critic[s, a]
         if a == 0:
             grad_log_theta = 1/theta
         else:
             grad_log_theta = -1/(1-theta)
-        policy_update = Q_w*grad_log_theta
-        print(self.pi)
-        theta_new = min(max(0.01,theta + self.lr * policy_update), 0.99)
-        self.pi[s,0] = theta_new
-        self.pi[s,1] = 1-theta_new
-        
+        grad_log_theta_all = np.zeros(self.thetas.shape)
+        grad_log_theta_all[s] = grad_log_theta
+        return grad_log_theta_all
+    
+    def set_pi(self):
+        self.pi[:,0] = self.thetas.flatten()
+        self.pi[:,1] = 1-self.thetas.flatten()
+
+class Q_actor_critic_lin_pol(actor_critic_lin_pol):
+
+    def calc_delta(self, s, a, r, s_prime):
         if s_prime != -1:
+            next_p_vals = self.pi[s_prime]
             a_prime = np.argmax(np.random.multinomial(1, pvals=next_p_vals))
             delta_t = r + self.d_f*self.critic[s_prime, a_prime] - self.critic[s, a]
         else:
             delta_t = r - self.critic[s,a]
-        critic_update = delta_t
-        self.critic[s, a] += self.lr*critic_update
+        return delta_t
+
+class advantage_actor_critic_lin_pol(actor_critic_lin_pol):
+    
+    def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
+        super().__init__(init_q, num_states, num_actions, learning_rate, discount_factor, exploration_rate)
+        self.Value = np.zeros(num_states)
+
+    def single_Q_update(self, s, a, r, s_prime):
+        super().single_Q_update(s, a, r, s_prime)
+        self.update_V(s, a, r, s_prime)
+
+    def update_V(self, s, a, r, s_prime):
+        if s_prime != -1:
+            target = r + self.d_f*self.Value[s_prime]
+        else:
+            target = r
+        error = target - self.Value[s]
+        self.Value[s] += self.lr*error
+
+    def calc_delta(self, s, a, r, s_prime):
+        if s_prime != -1:
+            delta_t = r + self.d_f*self.Value[s_prime] - self.Value[s]
+        else:
+            delta_t = r - self.Value[s]
+        return delta_t

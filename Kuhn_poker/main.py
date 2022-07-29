@@ -122,8 +122,8 @@ beliefs = []
 #p1 = vanilla_rl(0,6,2, learning_rate=0, T=1)
 #p1.Q_mat[2,0] = 10
 #p1.Q_mat[0,1] = 10
-players = [Q_learn(0,6,2,T=1) for i in range(num_players)]
-players = [Q_actor_critic(1,6,2) for i in range(num_players)]
+#players = [Q_learn(0,6,2,T=1) for i in range(num_players)]
+players = [Q_actor_critic_lin_pol(1,6,2) for i in range(num_players)]
 #players = [OBL(0,6,2, T=1) for i in range(num_players)]
 for i in range(2000):
     play_game(players, game)
