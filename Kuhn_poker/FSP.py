@@ -31,6 +31,33 @@ def RL(RL_mem,Q, V, k, thetas):
     return beta, Q, V, thetas
 
 
+
+def adv_actor_critic_softmax(RL_mem, Q, V, k, thetas):
+    gamma=0.9
+    lr=0.05/(1+0.003*np.sqrt(k))
+
+    RL_buff = random.choices(RL_mem, k=min(300, len(RL_mem)))
+    for elem in RL_buff:
+        theta = thetas[elem["s"], elem["a"]]
+        grad_log_theta = 1-np.exp(theta)/np.sum(np.exp(thetas[elem["s"],:]))
+
+        if elem["s'"] == -1:
+            advantage = elem["r"] - V[elem["s"]]
+        else:
+            advantage = elem["r"] - V[elem["s"]] + gamma*V[elem["s'"]]
+        theta_update = grad_log_theta*advantage
+        thetas[elem["s"],elem["a"]] = theta + lr*theta_update
+    
+    for elem in RL_buff:
+        if elem["s'"] == -1:
+            update = elem["r"] - V[elem["s"]]
+        else:
+            update = elem["r"] - V[elem["s"]] + gamma*V[elem["s'"]]
+        V[elem["s"]] += lr*update
+    beta = np.exp(thetas)/np.sum(np.exp(thetas),axis=1)[:,np.newaxis]
+    
+    return beta, Q, V, thetas
+
 def adv_actor_critic(RL_mem, Q, V, k, thetas):
     gamma=0.9
     lr=0.05/(1+0.003*np.sqrt(k))
@@ -62,7 +89,7 @@ def adv_actor_critic(RL_mem, Q, V, k, thetas):
 
 class FSP:
 
-    def __init__(self, _game, _RL_algo=adv_actor_critic, _SL_algo=count_based_SL, max_iters=100, m=50, n=50):
+    def __init__(self, _game, _RL_algo=adv_actor_critic_softmax, _SL_algo=count_based_SL, max_iters=100, m=50, n=50):
         self.game = _game
         self.RL = _RL_algo
         self.SL = _SL_algo
@@ -70,8 +97,8 @@ class FSP:
         self.m = m
         self.n = n
         self.max_iters = max_iters
-        self.exploitability_iters = 100
-        self.est_exploit_freq = 10
+        self.exploitability_iters = 1000
+        self.est_exploit_freq = 100
 
     def gen_data(self, pi, beta, n, m, eta):
         sigma = []
@@ -81,14 +108,17 @@ class FSP:
         for i in range(n):
             D_mixed.append(self.play_game(sigma))
         D = []
+        exploitability = 0
         for p in range(self.num_players):
             D.append([])
             for i in range(m):
                 strat = sigma.copy()
                 strat[p] = beta[p]
-                D[p].append((self.play_game(strat),strat[p]))
+                result = self.play_game(strat)
+                exploitability += result[p][-1]['r']/(m*self.num_players)
+                D[p].append((result,strat[p]))
             D[p] += zip(D_mixed,[sigma[p] for j in D_mixed])
-        return D
+        return D, exploitability
 
     def run_algo(self):
         pi = []
@@ -104,24 +134,27 @@ class FSP:
         mem_SL = [[] for i in range(self.num_players)]
         Q = [np.zeros(pi_1[i].shape) for i in range(self.num_players)]
         V = [np.zeros(self.game.num_states[p]) for p in range(self.num_players)]
-        thetas = [np.ones(self.game.num_states[p])/self.game.num_actions[p] for p in range(self.num_players)]
+        #thetas = [np.ones(self.game.num_states[p])/self.game.num_actions[p] for p in range(self.num_players)]
+        thetas = [np.ones((self.game.num_states[p], self.game.num_actions[p])) for p in range(self.num_players)]
         exploitability = []
         for j in range(2,self.max_iters):
             eta_j = 1/j
             #eta_j = 1/2
-            D = self.gen_data(pi[-1],beta[-1], self.n, self.m, eta_j)
+            D, curr_exploitability = self.gen_data(pi[-1],beta[-1], self.n, self.m, eta_j)
+            exploitability.append(curr_exploitability)
             new_beta = []
             new_pi = []
             for p in range(self.num_players):
                 mem_RL[p] = self.update_RL_mem(mem_RL[p], D[p], p)
-                mem_SL[p] = self.update_SL_mem(mem_SL[p], D[p], p)
+                mem_SL[p] = self.update_SL_mem(mem_SL[p], D[p], p, beta[-1][p])
                 new_b, Q[p], V[p], thetas[p] = self.RL(mem_RL[p],Q[p],V[p],j, thetas[p])
                 new_beta.append(new_b)
                 new_pi.append(self.SL(mem_SL[p]))
             pi.append(new_pi)
             beta.append(new_beta)
-            if j%self.est_exploit_freq == 0:
-                exploitability.append(self.est_exploitability(new_beta, new_pi))
+            
+            #if j%self.est_exploit_freq == 0:
+            #    exploitability.append(self.est_exploitability(new_beta, new_pi))
         import pdb; pdb.set_trace()
         return pi[-1], exploitability, (pi, beta, Q, D)
 
@@ -129,20 +162,14 @@ class FSP:
         new_mem=old_mem
         for elem in data:
             new_mem += elem[0][p]
-        
-        #do we store our own behaviour (s_t, a_t, r_{t+1}, s_{t+1}) or other agents'????
-
-        #for player in range(self.num_players):
-        #    if player != p:
-        #        for elem in data[player]:
-        #            new_mem[player].append(elem)
         return new_mem
 
-    def update_SL_mem(self, old_mem, data, p):
+    def update_SL_mem(self, old_mem, data, p, beta):
         new_mem=old_mem
         for elem in data:
             #Here we store our own behaviour tuple and the policy we were following?
-            new_mem.append((elem[0][p], elem[1]))
+            if np.all(elem[1] == beta):
+                new_mem.append((elem[0][p], elem[1]))
         return new_mem
 
     def play_game(self, strat):

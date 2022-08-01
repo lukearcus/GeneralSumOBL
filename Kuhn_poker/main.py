@@ -40,7 +40,10 @@ def play_game(players, game):
         player = players[game.curr_player]
         player.observe(game.observe())
         game.action(None)
+    reward = players[0].r_hist[-1]
+    for i in players:
         player.reset()
+    return reward
 
 def play_obl_game(p1, p2, game):
     """
@@ -117,16 +120,18 @@ num_lvls =1
 num_players = 2
 beliefs = []
 
-#p1 = human()
-#p2 = human()
 #p1 = vanilla_rl(0,6,2, learning_rate=0, T=1)
 #p1.Q_mat[2,0] = 10
 #p1.Q_mat[0,1] = 10
 #players = [Q_learn(0,6,2,T=1) for i in range(num_players)]
-players = [Q_actor_critic_lin_pol(1,6,2, exploration_rate=0) for i in range(num_players)]
+#players = [human() for i in range(num_players)]
+#players = [human(), advantage_actor_critic_lin_pol(1,6,2)]
+players = [advantage_actor_critic_lin_pol(1,6,2, exploration_rate=0) for i in range(num_players)]
 #players = [OBL(0,6,2, T=1) for i in range(num_players)]
-for i in range(2000):
-    play_game(players, game)
+
+reward_hist = []
+for i in range(5000):
+    reward_hist.append(float(play_game(players, game)))
 
 #Q_mats = [(np.copy(p1.Q_mat),np.copy(p2.Q_mat))]
 #Q_change = []
@@ -152,13 +157,10 @@ for i in range(2000):
 #    p2.reset_Q()
 #b1,b2 = gen_belief(p1,p2)
 #beliefs.append((b1,b2))
-#reward_hist = []
-#for i in range(1000):
-#   reward_hist.append(play_game())
 
-#reward_smoothed = gaussian_filter1d(reward_hist, sigma=1)
-#plt.plot(reward_smoothed)
-#plt.show()
+reward_smoothed = gaussian_filter1d(reward_hist, sigma=50)
+plt.plot(reward_smoothed)
+plt.show()
 
 import pdb; pdb.set_trace()
 #plt.plot(Q_change)

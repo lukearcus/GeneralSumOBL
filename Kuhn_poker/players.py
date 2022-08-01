@@ -21,12 +21,16 @@ class player:
 class human(player):
     Q_mat = 0
     state_hist=[]
-
+    r_hist = []
     def observe(self, observation):
-        print("Current pot is: " + str(observation[1]))
-        print("Your card is: " + str(observation[0]))
+        if observation[0] != -1:
+            print("Current pot is: " + str(observation[1]))
+            print("Your card is: " + str(observation[0]))
+        else:
+            print("Your payout is: " + str(observation[2]))
         self.state = observation
         self.state_hist.append(self.state)
+        self.r_hist.append(observation[2])
 
     def action(self):
         print("Choose an action: ")
