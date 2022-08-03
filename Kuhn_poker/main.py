@@ -126,13 +126,18 @@ beliefs = []
 #players = [Q_learn(0,6,2,T=1) for i in range(num_players)]
 #players = [human() for i in range(num_players)]
 #players = [human(), advantage_actor_critic_lin_pol(1,6,2)]
-players = [advantage_actor_critic_lin_pol(1,6,2, exploration_rate=0) for i in range(num_players)]
+players = [Q_actor_critic_lin_pol(1,6,2, exploration_rate=0, discount_factor=1.0) for i in range(num_players)]
+
 #players = [OBL(0,6,2, T=1) for i in range(num_players)]
 
+V_change = []
+#V_prev = np.copy(players[0].Value)
+#Vals = []
 reward_hist = []
-for i in range(5000):
+for i in range(50000):
     reward_hist.append(float(play_game(players, game)))
-
+    #V_change.append(np.linalg.norm(players[0].Value-V_prev))
+    #V_prev = np.copy(players[0].Value)
 #Q_mats = [(np.copy(p1.Q_mat),np.copy(p2.Q_mat))]
 #Q_change = []
 #for lvl in range(num_lvls):
@@ -160,11 +165,11 @@ for i in range(5000):
 
 reward_smoothed = gaussian_filter1d(reward_hist, sigma=50)
 plt.plot(reward_smoothed)
+#V_smoothed = gaussian_filter1d(V_change, sigma=50)
+#plt.plot(V_smoothed)
 plt.show()
 
 import pdb; pdb.set_trace()
-#plt.plot(Q_change)
-#plt.show()
 #fig, axs = plt.subplots(num_lvls+1,4)
 #for level in range(num_lvls+1):
 #    axs[level,2].imshow(beliefs[level][0])

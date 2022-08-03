@@ -80,11 +80,12 @@ class Q_learn(player):
         if len(self.state_hist) > 0:
             self.next_state_hist.append(self.state)
             s = self.state_hist[-1]
-            a = self.act_hist[-1]
-            r = reward
-            s_prime = self.state
-            self.tuple_hist.append((s, a, r, s_prime))
-            self.single_Q_update(s, a, r, s_prime)
+            if s != -1:
+                a = self.act_hist[-1]
+                r = reward
+                s_prime = self.state
+                self.tuple_hist.append((s, a, r, s_prime))
+                self.single_Q_update(s, a, r, s_prime)
         self.state_hist.append(self.state)
         self.r_hist.append(reward)
 
@@ -132,7 +133,7 @@ class OBL(Q_learn):
 
 class actor_critic(Q_learn):
      
-    def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
+    def __init__(self, init_q, num_states, num_actions, learning_rate=0.05, discount_factor=0.9, exploration_rate=0.3):
         self.pi = np.ones((num_states, num_actions))*(1/num_actions)
         self.thetas = np.ones((num_states, 1))*(1/num_actions)
         self.critic = np.ones((num_states, num_actions))*init_q
@@ -177,8 +178,7 @@ class actor_critic(Q_learn):
         self.thetas = np.minimum(np.maximum(1e-5, self.thetas + self.lr * policy_update), 1-1e-5)
         
         self.set_pi()
-        
-
+       
         critic_update = self.calc_delta(s, a, r, s_prime)
         self.critic[s, a] += self.lr*critic_update
 
@@ -213,7 +213,7 @@ class advantage_actor_critic_lin_pol(actor_critic_lin_pol):
     
     def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
         super().__init__(init_q, num_states, num_actions, learning_rate, discount_factor, exploration_rate)
-        self.Value = np.zeros(num_states)
+        self.Value = np.ones(num_states)*init_q
 
     def single_Q_update(self, s, a, r, s_prime):
         super().single_Q_update(s, a, r, s_prime)
@@ -233,3 +233,21 @@ class advantage_actor_critic_lin_pol(actor_critic_lin_pol):
         else:
             delta_t = r - self.Value[s]
         return delta_t
+
+class advantage_actor_critic_softmax(advantage_actor_critic_lin_pol):
+    
+    def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
+        super().__init__(init_q, num_states, num_actions, learning_rate, discount_factor, exploration_rate)
+        self.thetas = np.ones((num_states, num_actions))
+
+    def calc_grad(self, s, a):
+        theta = self.thetas[s, a] # assume 2 actions with probs theta and 1-theta
+        
+        grad_log_theta = 1-np.exp(theta)/np.sum(np.exp(self.thetas[s,:]))
+        
+        grad_log_theta_all = np.zeros(self.thetas.shape)
+        grad_log_theta_all[s, a] = grad_log_theta
+        return grad_log_theta_all
+    
+    def set_pi(self):
+        self.pi = np.exp(self.thetas)/np.sum(np.exp(self.thetas),axis=1)[:,np.newaxis]
