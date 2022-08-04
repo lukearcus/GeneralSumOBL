@@ -72,13 +72,16 @@ class Kuhn_Poker:
 
 class Kuhn_Poker_int_io(Kuhn_Poker):
     
+    def __init__(self):
+        super().__init__()
+        self.poss_pots = list(product([1,2],repeat=self.num_players-1))
+    
     def observe(self):    
         card, game_pot, reward = super().observe()
         if card != -1:
             pot = game_pot.copy()
-            poss_pots = list(product([1,2],repeat=self.num_players-1))
             pot.pop(self.curr_player)
-            pot_ind = poss_pots.index(tuple(pot))
+            pot_ind = self.poss_pots.index(tuple(pot))
             return pot_ind*(self.num_players+1)+card-1, reward
         else:
             return -1, reward
@@ -88,3 +91,45 @@ class Kuhn_Poker_int_io(Kuhn_Poker):
             super().action("bet")
         else:
             super().action("check")
+
+class Fict_Kuhn_int(Kuhn_Poker_int_io):
+
+    def __init__(self):
+        super().__init__()
+        self.poss_hidden = list(product(list(range(1,self.num_players+2)), \
+                                       repeat=self.num_players-1))
+ 
+
+    def set_state(self, p_state, hidden_state, p_id):
+        self.ended = False
+        self.curr_player = p_id
+        self.cards = list(self.poss_hidden[hidden_state])
+        player_card = (p_state % (self.num_players+1))+1
+        self.cards.insert(p_id, player_card)
+
+        p_pot = (p_state // (self.num_players+1))
+
+        self.curr_bets = list(self.poss_pots[p_pot])
+        self.curr_bets.insert(p_id, 1)
+        
+        self.betted = [bool(bet-1) for bet in self.curr_bets]
+        self.checked = [False for betted in self.betted]
+        for p in range(p_id):
+            self.checked[p] = not self.betted[p]
+        self.folded = [False for player in range(self.num_players)]
+        if any(self.betted):
+            first = self.betted.index(True)
+            if p_id > first:
+                for p in range(first, p_id):
+                    self.folded[p] = not self.betted[p]
+            else:
+                for p in range(p_id):
+                    self.folded[p] = not self.betted[p]
+                for p in range(first, self.num_players):
+                    self.folded[p] = not self.betted[p]
+
+    def get_hidden(self, p_id):
+        curr_cards = self.cards.copy()
+        curr_cards.pop(p_id)
+        hidden_state = self.poss_hidden.index(tuple(curr_cards))
+        return hidden_state

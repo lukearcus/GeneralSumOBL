@@ -1,5 +1,6 @@
-from game import Kuhn_Poker
+from game import *
 from players import *
+import learners
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
 
@@ -40,8 +41,8 @@ def play_game(players, game):
         player = players[game.curr_player]
         player.observe(game.observe())
         game.action(None)
-    reward = players[0].r_hist[-1]
-    for i in players:
+    reward = players[0].buffer[-1]["r"]
+    for player in players:
         player.reset()
     return reward
 
@@ -114,75 +115,61 @@ def play_obl_game(p1, p2, game):
     p1.reset()
     p2.reset()
 
-#p2 = human()
-game = Kuhn_Poker()
-num_lvls =1
+game = Kuhn_Poker_int_io()
+num_lvls = 4
+games_per_lvl=1000
 num_players = 2
-beliefs = []
+RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6, extra_samples = 0)\
+               for p in range(num_players)]
+fict_game = Fict_Kuhn_int()
+#players = [RL(RL_learners[p],p) for p in range(num_players)]
 
-#p1 = vanilla_rl(0,6,2, learning_rate=0, T=1)
-#p1.Q_mat[2,0] = 10
-#p1.Q_mat[0,1] = 10
-#players = [Q_learn(0,6,2,T=1) for i in range(num_players)]
-#players = [human() for i in range(num_players)]
-#players = [human(), advantage_actor_critic_lin_pol(1,6,2)]
-players = [Q_actor_critic_lin_pol(1,6,2, exploration_rate=0, discount_factor=1.0) for i in range(num_players)]
+players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
+for p in range(num_players):
+    curr_player = players.pop(p)
+    curr_player.set_other_players(players)
+    players.insert(p, curr_player)
 
-#players = [OBL(0,6,2, T=1) for i in range(num_players)]
+reward_hist = [[0 for i in range(games_per_lvl)] for lvl in range(num_lvls)]
+pol_hist = []
+belief_hist = []
+for lvl in range(num_lvls):
+    pols = []
+    bels = []
+    for p in players:
+        pols.append(p.opt_pol)
+        p.update_belief()
+        bels.append(p.belief)
+    pol_hist.append(pols)
+    belief_hist.append(bels)
+    for i in range(games_per_lvl):
+        reward_hist[lvl][i] = float(play_game(players, game))
+pols = []
+bels = []
+for p in players:
+    pols.append(p.opt_pol)
+    p.update_belief()
+    bels.append(p.belief)
+pol_hist.append(pols)
+belief_hist.append(bels)
 
-V_change = []
-#V_prev = np.copy(players[0].Value)
-#Vals = []
-reward_hist = []
-for i in range(50000):
-    reward_hist.append(float(play_game(players, game)))
-    #V_change.append(np.linalg.norm(players[0].Value-V_prev))
-    #V_prev = np.copy(players[0].Value)
-#Q_mats = [(np.copy(p1.Q_mat),np.copy(p2.Q_mat))]
-#Q_change = []
-#for lvl in range(num_lvls):
-#    if p1.belief is not None or p2.belief is not None:
-#        b1,b2 = gen_belief(p1,p2)
-#        beliefs.append((b1,b2))
-#    if p1.belief is not None:
-#        p1.set_belief(b1)
-#    if p2.belief is not None:
-#        p2.set_belief(b2)
-#    q1_old = np.copy(p1.Q_mat)
-#    q2_old = np.copy(p2.Q_mat)
-#    for i in range(1000):
-#        play_obl_game(p1,p2,game)
-#        Q_change.append((np.linalg.norm(q1_old-p1.Q_mat), np.linalg.norm(q2_old-p2.Q_mat)))
-#        q1_old = np.copy(p1.Q_mat)
-#        q2_old = np.copy(p2.Q_mat)
-#        p1.eps = 1-i/1000
-#        p2.eps = 1-i/1000
-#    Q_mats.append((np.copy(p1.Q_mat),np.copy(p2.Q_mat)))
-#    p1.reset_Q()
-#    p2.reset_Q()
-#b1,b2 = gen_belief(p1,p2)
-#beliefs.append((b1,b2))
+#reward_smoothed = gaussian_filter1d(reward_hist, sigma=50)
+#plt.plot(reward_smoothed)
+plt.show()
 
-reward_smoothed = gaussian_filter1d(reward_hist, sigma=50)
-plt.plot(reward_smoothed)
-#V_smoothed = gaussian_filter1d(V_change, sigma=50)
-#plt.plot(V_smoothed)
+fig, axs = plt.subplots(num_lvls+1,4)
+for level in range(num_lvls+1):
+    axs[level,2].imshow(belief_hist[level][0])
+    axs[level,3].imshow(belief_hist[level][1])
+    x_label_list = ["","bet","check"]
+    y_label_list = ["","1 low", "2 low", "3 low", "1 high", "2 high", "3 high"]
+    axs[level,0].imshow(pol_hist[level][0])
+    axs[level,1].imshow(pol_hist[level][1])
+    axs[level,0].set_xticklabels(x_label_list)
+    axs[level,0].set_yticklabels(y_label_list)
+    axs[level,1].set_xticklabels(x_label_list)
+    axs[level,1].set_yticklabels(y_label_list)
+
 plt.show()
 
 import pdb; pdb.set_trace()
-#fig, axs = plt.subplots(num_lvls+1,4)
-#for level in range(num_lvls+1):
-#    axs[level,2].imshow(beliefs[level][0])
-#    axs[level,3].imshow(beliefs[level][1])
-#    x_label_list = ["","bet/call","check/fold"]
-#    y_label_list = ["","no raise 1", "no raise 2", "no raise 3", "raised 1", "raised 2", "raised 3"]
-#    axs[level,0].imshow(Q_mats[level][0])
-#    axs[level,1].imshow(Q_mats[level][1])
-#    axs[level,0].set_xticklabels(x_label_list)
-#    axs[level,0].set_yticklabels(y_label_list)
-#    axs[level,1].set_xticklabels(x_label_list)
-#    axs[level,1].set_yticklabels(y_label_list)
-#
-#plt.show()
-#
-#f, (ax1, ax2) = plt.subplots(1,2)

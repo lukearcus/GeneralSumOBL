@@ -46,208 +46,99 @@ class human(player):
     def get_reward(self, reward):
         print("You got " + str(reward) + " coins")
 
-class Q_learn(player):
+class RL(player):
+    opt_pol = None
 
-    def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3, T=0.01):
-        self.Q_mat = np.ones((num_states, num_actions))*init_q
-        self.init_Q_mat = np.copy(self.Q_mat)
-        self.lr = learning_rate
-        self.d_f = discount_factor
-        self.eps = exploration_rate
-        self.temp = T
-        random.seed(1)
-        self.reset()
+    def __init__(self, learner, player_id):
+        self.learner = learner
+        self.opt_pol = learner.opt_pol
+        self.id = player_id
+        self.buffer = []
 
     def reset(self):
-        self.state_hist = []
-        self.act_hist = []
-        self.next_state_hist = []
-        self.r_hist = []
-        self.tuple_hist = []
-
-    def reset_Q(self):
-        self.Q_mat = np.copy(self.init_Q_mat)
+        self.buffer = []
+        #self.learner.wipe_memory()
 
     def observe(self, observation):
-        if observation[0] == -1:
-            self.state = -1
-        else:
-            if observation[1][0] == observation[1][1]:
-                self.state = observation[0] - 1
+        self.state = observation[0]
+        if not fict:
+            reward = observation[1]
+            if self.buffer != []:
+                self.buffer[-1]["s'"] = self.state
+                self.buffer[-1]["r"] = reward
+            if self.state != -1:
+                self.buffer.append({"s": self.state, "a": -1, "r": 0, "s'": -1})
             else:
-                self.state = 2 + observation[0]
-        reward = observation[2]
-        if len(self.state_hist) > 0:
-            self.next_state_hist.append(self.state)
-            s = self.state_hist[-1]
-            if s != -1:
-                a = self.act_hist[-1]
-                r = reward
-                s_prime = self.state
-                self.tuple_hist.append((s, a, r, s_prime))
-                self.single_Q_update(s, a, r, s_prime)
-        self.state_hist.append(self.state)
-        self.r_hist.append(reward)
+                self.learner.update_memory([(self.buffer, None)])
+                self.opt_pol = self.learner.learn()
 
     def action(self):
-        if self.state < 3:
-            acts = ["bet", "check"]
-        else:
-            acts = ["bet", "fold"]
-        q_vals = np.copy(self.Q_mat[self.state,:])
-        if random.random() < self.eps:
-            sel_act = np.random.randint(len(q_vals))
-        else:
-            q_vals -= np.max(q_vals)
-            q_vals = np.exp(self.temp*q_vals)
-            q_vals /= np.sum(q_vals)
-            sel_act = np.argmax(np.random.multinomial(1, pvals=q_vals))
-        self.act_hist.append(sel_act)
-        self.act = sel_act
-        return acts[sel_act]
-    
-    def single_Q_update(self, s, a, r, s_prime):
-        if s_prime == -1:
-            update = r - self.Q_mat[s,a]
-        else:
-            update = r - self.Q_mat[s,a] + self.d_f*np.max(self.Q_mat[s_prime])
-        self.Q_mat[s, a] += self.lr * update
+        probs = self.opt_pol[self.state, :]
+        act = np.argmax(np.random.multinomial(1, pvals=probs))
+        self.buffer[-1]["a"] = act
+        return act
 
-    def train_all(self):
-        for i, elem in enumerate(self.tuple_hist):
-            s, a, r, s_prime = elem
-            self.single_Q_update(s, a, r, s_prime)
-
-class OBL(Q_learn):
+class OBL(RL):
     belief = 0
     
-    def single_Q_update(self, s, a, _1, _2):
-        """
-        Overwrite Q_update to do OBL
-        """
-        probs = self.belief[s]
-        fict = np.argmax(np.random.multinomial(1, pvals = probs))
+    def __init__(self, learner, player_id, fict_game, belief_iters = 1000):
+        self.belief_iters = belief_iters
+        super().__init__(learner, player_id)
+        self.fict_game = fict_game
+    
+    def set_other_players(self, other_players):
+        self.other_players = other_players.copy()
+        self.other_players.insert(self.id, "me")
 
-    def set_belief(self, new_belief):
-        self.belief = new_belief
-
-class actor_critic(Q_learn):
-     
-    def __init__(self, init_q, num_states, num_actions, learning_rate=0.05, discount_factor=0.9, exploration_rate=0.3):
-        self.pi = np.ones((num_states, num_actions))*(1/num_actions)
-        self.thetas = np.ones((num_states, 1))*(1/num_actions)
-        self.critic = np.ones((num_states, num_actions))*init_q
-        self.lr = learning_rate
-        self.d_f = discount_factor
-        self.eps = exploration_rate
-        random.seed(1)
-        self.reset()
-
+    def observe(self, observation, fict=False):
+        self.state = observation[0]
+        if not fict:
+            if self.state != -1:
+                belief_probs = self.belief[self.state, :]
+                belief_state = np.argmax(np.random.multinomial(1, pvals=belief_probs))
+                #Here we do OBL
+                self.fict_game.set_state(self.state, belief_state, self.id)
+                act = self.action()
+                #if self.state == 0:
+                #    import pdb; pdb.set_trace()
+                
+                self.fict_game.action(act)
+                while self.fict_game.curr_player != self.id:
+                    curr_player = self.other_players[self.fict_game.curr_player]
+                    other_p_obs = self.fict_game.observe()
+                    curr_player.observe(other_p_obs, fict=True)
+                    
+                    other_p_act = curr_player.action()
+                    self.fict_game.action(other_p_act)
+                next_obs = self.fict_game.observe()
+                s_prime = next_obs[0]
+                r = next_obs[1]
+                self.buffer.append({"s":self.state, "a": act, "r":r, "s'":s_prime})
+            else:
+                self.learner.update_memory([(self.buffer, None)])
+                self.opt_pol = self.learner.learn()
+                
     def action(self):
-        if self.state < 3:
-            acts = ["bet", "check"]
-        else:
-            acts = ["bet", "fold"]
-        p_vals = np.copy(self.pi[self.state,:])
-        if random.random() < self.eps:
-            sel_act = np.random.randint(len(p_vals))
-        else:
-            sel_act = np.argmax(np.random.multinomial(1, pvals=p_vals))
-        self.act_hist.append(sel_act)
-        self.act = sel_act
-        return acts[sel_act]
+        probs = self.opt_pol[self.state, :]
+        act = np.argmax(np.random.multinomial(1, pvals=probs))
+        return act
 
-    def calc_grad(self, s, a):
-        raise NotImplementedError
-
-    def set_pi(self):
-        raise NotImplementedError
-
-    def calc_delta(self, s, a, r, s_prime):
-        return NotImplementedError
-
-    def single_Q_update(self, s, a, r, s_prime):
-        """
-        Overwrite Q_update to do actor-critic
-        """
-        #A_w = self.critic[s, a]
-        A_w = self.calc_delta(s,a,r,s_prime)
-        grad_log_theta = self.calc_grad(s, a)
-        policy_update = A_w*grad_log_theta
-        
-        self.thetas = np.minimum(np.maximum(1e-5, self.thetas + self.lr * policy_update), 1-1e-5)
-        
-        self.set_pi()
-       
-        critic_update = self.calc_delta(s, a, r, s_prime)
-        self.critic[s, a] += self.lr*critic_update
-
-class actor_critic_lin_pol(actor_critic):
-
-    def calc_grad(self, s, a):
-        theta = self.pi[s, 0] # assume 2 actions with probs theta and 1-theta
-        if a == 0:
-            grad_log_theta = 1/theta
-        else:
-            grad_log_theta = -1/(1-theta)
-        grad_log_theta_all = np.zeros(self.thetas.shape)
-        grad_log_theta_all[s] = grad_log_theta
-        return grad_log_theta_all
-    
-    def set_pi(self):
-        self.pi[:,0] = self.thetas.flatten()
-        self.pi[:,1] = 1-self.thetas.flatten()
-
-class Q_actor_critic_lin_pol(actor_critic_lin_pol):
-
-    def calc_delta(self, s, a, r, s_prime):
-        if s_prime != -1:
-            next_p_vals = self.pi[s_prime]
-            a_prime = np.argmax(np.random.multinomial(1, pvals=next_p_vals))
-            delta_t = r + self.d_f*self.critic[s_prime, a_prime] - self.critic[s, a]
-        else:
-            delta_t = r - self.critic[s,a]
-        return delta_t
-
-class advantage_actor_critic_lin_pol(actor_critic_lin_pol):
-    
-    def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
-        super().__init__(init_q, num_states, num_actions, learning_rate, discount_factor, exploration_rate)
-        self.Value = np.ones(num_states)*init_q
-
-    def single_Q_update(self, s, a, r, s_prime):
-        super().single_Q_update(s, a, r, s_prime)
-        self.update_V(s, a, r, s_prime)
-
-    def update_V(self, s, a, r, s_prime):
-        if s_prime != -1:
-            target = r + self.d_f*self.Value[s_prime]
-        else:
-            target = r
-        error = target - self.Value[s]
-        self.Value[s] += self.lr*error
-
-    def calc_delta(self, s, a, r, s_prime):
-        if s_prime != -1:
-            delta_t = r + self.d_f*self.Value[s_prime] - self.Value[s]
-        else:
-            delta_t = r - self.Value[s]
-        return delta_t
-
-class advantage_actor_critic_softmax(advantage_actor_critic_lin_pol):
-    
-    def __init__(self, init_q, num_states, num_actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.3):
-        super().__init__(init_q, num_states, num_actions, learning_rate, discount_factor, exploration_rate)
-        self.thetas = np.ones((num_states, num_actions))
-
-    def calc_grad(self, s, a):
-        theta = self.thetas[s, a] # assume 2 actions with probs theta and 1-theta
-        
-        grad_log_theta = 1-np.exp(theta)/np.sum(np.exp(self.thetas[s,:]))
-        
-        grad_log_theta_all = np.zeros(self.thetas.shape)
-        grad_log_theta_all[s, a] = grad_log_theta
-        return grad_log_theta_all
-    
-    def set_pi(self):
-        self.pi = np.exp(self.thetas)/np.sum(np.exp(self.thetas),axis=1)[:,np.newaxis]
+    def update_belief(self):
+        num_hidden = len(self.fict_game.poss_hidden)
+        num_states = self.opt_pol.shape[0]
+        new_belief = np.ones((num_states, num_hidden))
+        for i in range(self.belief_iters):
+            self.fict_game.start_game()
+            while not self.fict_game.ended:
+                p_id = self.fict_game.curr_player
+                if p_id == self.id:
+                    player = self
+                else:
+                    player = self.other_players[p_id]
+                player.observe(self.fict_game.observe(), fict=True)
+                self.fict_game.action(player.action())
+                if p_id == self.id:
+                    hidden_state = self.fict_game.get_hidden(self.id)
+                    new_belief[self.state, hidden_state] += 1
+        new_belief /= np.sum(new_belief,1,keepdims=True)
+        self.belief = new_belief

@@ -11,6 +11,9 @@ class learner_base:
     def learn(self):
         raise NotImplementedError
 
+    def wipe_memory(self):
+        self.memory = []
+
 class RL_base(learner_base):
     opt_pol = None
     memory = []
