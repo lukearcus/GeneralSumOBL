@@ -92,12 +92,16 @@ class Q_learn(RL_base):
 
 class actor_critic(RL_base):
 
-    def __init__(self, pol_func, advantage_func, num_actions, num_states, init_adv = 1, extra_samples=10, init_lr=0.05, df=1.0):
+    def __init__(self, pol_func, advantage_func, num_actions, num_states, init_adv = 0, extra_samples=10, init_lr=0.05, df=1.0):
         self.pol_func = pol_func(num_states, num_actions)
         self.advantage_func = advantage_func(init_adv, num_states, num_actions, df)
         self.opt_pol = self.pol_func.policy
         self.memory = []
         super().__init__(extra_samples, init_lr, df)
+
+    def reset(self):
+        self.pol_func.reset()
+        self.advantage_func.reset()
 
     def learn(self):
         self.iteration += 1
@@ -131,6 +135,9 @@ class pol_func_base:
     def update(self):
         raise NotImplementedError
 
+    def reset(self):
+        raise NotImplementedError
+
 class advantage_func_base:
 
     def __init__(self, init_adv, num_states, num_actions):
@@ -140,6 +147,9 @@ class advantage_func_base:
         raise NotImplementedError
 
     def update(self, update, s, a):
+        raise NotImplementedError
+    
+    def reset(self):
         raise NotImplementedError
 
 class softmax(pol_func_base):
@@ -160,11 +170,16 @@ class softmax(pol_func_base):
     def update(self):
         self.policy = np.exp(self.thetas)/np.sum(np.exp(self.thetas),axis=1)[:,np.newaxis]
         return self.policy
+    
+    def reset(self):
+        self.thetas = np.ones_like(self.thetas)
+        self.update()
 
 class value_advantage(advantage_func_base):
 
     def __init__(self, init_adv, num_states, _, df):
         self.V = np.ones(num_states)*init_adv
+        self.init_adv = init_adv
         self.gamma = df
 
     def eval(self, s, a, r, s_prime):
@@ -176,6 +191,9 @@ class value_advantage(advantage_func_base):
 
     def update(self, update, s, _):
         self.V[s] += update
+
+    def reset(self):
+        self.V = np.ones_like(self.V) * self.init_adv
 
 class complete_learner:
 
@@ -190,6 +208,7 @@ class complete_learner:
         self.SL_learner.update_memory(data)
 
     def learn(self):
+        self.RL_learner.reset()
         for i in range(100):
             self.beta = self.RL_learner.learn()
         self.pi = self.SL_learner.learn()

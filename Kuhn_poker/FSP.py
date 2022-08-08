@@ -1,22 +1,25 @@
 import numpy as np
 import random
+import time
 
 class FSP:
 
-    def __init__(self, _game, _agents, max_iters=100, m=50, n=50):
+    def __init__(self, _game, _agents, max_iters=100, max_time=300, m=50, n=50, exploit_iters=100, exploit_freq=10):
         self.game = _game
         self.agents = _agents
         self.num_players = self.game.num_players
         self.m = m
         self.n = n
         self.max_iters = max_iters
-        self.exploitability_iters = 100
-        self.est_exploit_freq = 1
+        self.max_time = max_time
+        self.exploitability_iters = exploit_iters
+        self.est_exploit_freq = exploit_freq
 
     def gen_data(self, pi, beta, eta):
         sigma = []
         for p in range(self.num_players):
             sigma.append((1-eta)*pi[p]+eta*beta[p])
+        #import pdb; pdb.set_trace() 
         D = [[] for i in range(self.num_players)]
         for i in range(self.n):
             res = self.play_game(sigma)
@@ -30,7 +33,7 @@ class FSP:
                 result = self.play_game(strat)
                 exploitability += result[p][-1]['r']/(self.m)
                 D[p].append((result[p],strat[p],True))
-        return D, exploitability
+        return D, exploitability, sigma
 
     def run_algo(self):
         pi = []
@@ -43,10 +46,11 @@ class FSP:
         beta.append(pi_1)
 
         exploitability = []
+        tic = time.perf_counter()
         for j in range(2,self.max_iters):
             eta_j = 1/j
             #eta_j = 1/2
-            D, curr_exploitability = self.gen_data(pi[-1],beta[-1], eta_j)
+            D, curr_exploitability, sigma = self.gen_data(pi[-1],beta[-1], eta_j)
             #exploitability.append(curr_exploitability)
             new_beta = []
             new_pi = []
@@ -57,9 +61,12 @@ class FSP:
                 new_pi.append(new_p)
             pi.append(new_pi)
             beta.append(new_beta)
-            
+            #import pdb; pdb.set_trace()
             if j%self.est_exploit_freq == 0:
                 exploitability.append(self.est_exploitability(new_pi, new_beta))
+            toc = time.perf_counter()
+            if toc-tic > self.max_time:
+                break
         #import pdb; pdb.set_trace()
         return pi[-1], exploitability, (pi, beta, D)
 
@@ -104,4 +111,5 @@ class FSP:
         
         for p in range(self.num_players):
             R[p] /= self.exploitability_iters
+        #import pdb; pdb.set_trace() 
         return sum(R)

@@ -46,6 +46,9 @@ class human(player):
     def get_reward(self, reward):
         print("You got " + str(reward) + " coins")
 
+
+
+
 class RL(player):
     opt_pol = None
 
@@ -57,9 +60,9 @@ class RL(player):
 
     def reset(self):
         self.buffer = []
-        #self.learner.wipe_memory()
+        self.learner.wipe_memory()
 
-    def observe(self, observation):
+    def observe(self, observation, fict=False):
         self.state = observation[0]
         if not fict:
             reward = observation[1]
@@ -71,12 +74,32 @@ class RL(player):
             else:
                 self.learner.update_memory([(self.buffer, None)])
                 self.opt_pol = self.learner.learn()
+        self.r = observation[1]
 
     def action(self):
         probs = self.opt_pol[self.state, :]
         act = np.argmax(np.random.multinomial(1, pvals=probs))
         self.buffer[-1]["a"] = act
         return act
+
+class fixed_pol(player):
+    opt_pol = None
+
+    def __init__(self, opt_pol):
+        self.opt_pol = opt_pol
+
+    def reset(self):
+        pass
+
+    def observe(self, observation):
+        self.state = observation[0]
+        self.r = observation[1]
+    
+    def action(self):
+        probs = self.opt_pol[self.state, :]
+        act = np.argmax(np.random.multinomial(1, pvals=probs))
+        return act
+
 
 class OBL(RL):
     belief = 0
@@ -92,6 +115,7 @@ class OBL(RL):
 
     def observe(self, observation, fict=False):
         self.state = observation[0]
+        self.r = observation[1]
         if not fict:
             if self.state != -1:
                 belief_probs = self.belief[self.state, :]
