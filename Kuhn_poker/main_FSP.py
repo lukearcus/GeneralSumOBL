@@ -19,7 +19,7 @@ time = 60
 
 KP_game = game.Kuhn_Poker_int_io()
 
-RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6, extra_samples = extras)\
+RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6, init_adv=-2, extra_samples = extras)\
                for p in range(2)]
 SL_learners = [learners.count_based_SL((6,2)) for p in range(2)]
 
