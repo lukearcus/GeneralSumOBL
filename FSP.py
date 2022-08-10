@@ -1,6 +1,8 @@
 import numpy as np
 import random
 import time
+import logging
+log = logging.getLogger(__name__)
 
 class FSP:
 
@@ -19,7 +21,6 @@ class FSP:
         sigma = []
         for p in range(self.num_players):
             sigma.append((1-eta)*pi[p]+eta*beta[p])
-        #import pdb; pdb.set_trace() 
         D = [[] for i in range(self.num_players)]
         for i in range(self.n):
             res = self.play_game(sigma)
@@ -42,8 +43,8 @@ class FSP:
         for p in range(self.num_players):
            pi_1.append(self.agents[p].pi)
 
-        pi.append(pi_1)
-        beta.append(pi_1)
+        pi.append(pi_1) # pi_1
+        beta.append(pi_1) # beta_2
 
         exploitability = []
         tic = time.perf_counter()
@@ -54,16 +55,23 @@ class FSP:
             #exploitability.append(curr_exploitability)
             new_beta = []
             new_pi = []
+            diff = 0
             for p in range(self.num_players):
                 self.agents[p].update_memory(D[p])
                 new_b, new_p = self.agents[p].learn()
-                new_beta.append(new_b)
-                new_pi.append(new_p)
+                new_beta.append(new_b) # beta_(j+1)
+                new_pi.append(new_p) # pi_j
+                log.debug("p" + str(p+1) + " sigma: " + str(sigma[p]))
+                log.debug("p" + str(p+1) + " new_pi: " + str(new_pi[p]))
+                log.debug("p" + str(p+1) + " new_beta: " + str(new_beta[p]))
+                #import pdb; pdb.set_trace()
+                diff += np.linalg.norm(new_pi[p]-sigma[p])
+            log.info("norm difference between new_pi and sigma: " +str(diff))
             pi.append(new_pi)
             beta.append(new_beta)
             #import pdb; pdb.set_trace()
             if j%self.est_exploit_freq == 0:
-                exploitability.append(self.est_exploitability(new_pi, new_beta))
+                exploitability.append(self.est_exploitability(sigma, new_beta))
             toc = time.perf_counter()
             if toc-tic > self.max_time:
                 break
@@ -91,7 +99,10 @@ class FSP:
             buffer[player][-1]["r"] = r
         return buffer
 
-    #def calc_BRs(self, pol):
+    #def calc_true_BRs(self, pol):
+
+        #for each information state
+            #calc next state probs (given fixed opponent)
     #    if self.num_players != 2:
     #        raise NotImplementedError
     #    else:
@@ -111,5 +122,6 @@ class FSP:
         
         for p in range(self.num_players):
             R[p] /= self.exploitability_iters
-        #import pdb; pdb.set_trace() 
+        #import pdb; pdb.set_trace()
+        log.info("Exploitability: " + str(sum(R)))
         return sum(R)

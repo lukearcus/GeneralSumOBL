@@ -110,11 +110,9 @@ class actor_critic(RL_base):
         RL_buff += self.memory[-min(self.last_round, len(self.memory)):]
         
         for elem in RL_buff:
-            theta_update = np.zeros_like(self.pol_func.thetas)
             grad_log_theta = self.pol_func.grad_log(elem["s"], elem["a"])
             advantage = self.advantage_func.eval(elem["s"], elem["a"], elem["r"], elem["s'"])
-            theta_update += grad_log_theta*advantage
-            
+            theta_update = grad_log_theta*advantage
             a_prime = np.argmax(np.random.multinomial(1, pvals=self.opt_pol[elem["s'"]]))
             delta = self.advantage_func.calc_delta(elem["s"], elem["a"], elem["r"], elem["s'"], a_prime)
             self.advantage_func.update(lr*delta, elem["s"], elem["a"])
@@ -171,6 +169,7 @@ class softmax(pol_func_base):
         return grad
 
     def update(self):
+        self.thetas = np.minimum(10**2,np.maximum(-10**2,self.thetas))
         self.policy = np.exp(self.thetas)/np.sum(np.exp(self.thetas),axis=1)[:,np.newaxis]
         return self.policy
     
@@ -265,7 +264,7 @@ class complete_learner:
 
     def learn(self):
         self.RL_learner.reset()
-        for i in range(100):
+        for i in range(50):
             self.beta = self.RL_learner.learn()
         self.pi = self.SL_learner.learn()
         return self.beta, self.pi

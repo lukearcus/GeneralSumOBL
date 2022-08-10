@@ -18,6 +18,9 @@ class player:
     def reset(self):
         pass
 
+    def wipe_mem(self):
+        pass
+
 class human(player):
     Q_mat = 0
     state_hist=[]
@@ -58,10 +61,14 @@ class RL(player):
         self.id = player_id
         self.buffer = []
 
-    def reset(self):
+    def wipe_mem(self):
         self.buffer = []
         self.learner.wipe_memory()
 
+    def reset(self):
+        self.learner.reset()
+        self.opt_pol = self.learner.opt_pol
+    
     def observe(self, observation, fict=False):
         self.state = observation[0]
         if not fict:
