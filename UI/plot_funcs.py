@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter1d
 
 LABEL_SETS = {
         'kuhn_policy': {'x':("bet","check"),'y': ("1 low", "2 low", "3 low", "1 high", "2 high", "3 high")},
         'kuhn_belief': {'x':("1","2","3"),'y':("1 low", "2 low", "3 low", "1 high", "2 high", "3 high")},
         }
 
-def plot_everything(pols, bels, game):
+def plot_everything(pols, bels, game, reward):
     fig = plt.figure()
     if bels is not None:
         subfigs = fig.subfigures(1,2)
@@ -14,11 +15,18 @@ def plot_everything(pols, bels, game):
         subfigs[0].suptitle('Policies', fontsize=32)
         multiple_heatmaps(bels, subfigs[1], game+ "_belief")
         subfigs[1].suptitle('Beliefs', fontsize = 32)
+        fig2 = plt.figure()
+        ax = fig2.subplots()
+        reward_smoothed(reward, fig2)
     else:
         multiple_heatmaps(pols, fig, game + "_policy")
         fig.suptitle('Policies', fontsize=32)
 
     plt.show()
+
+def reward_smoothed(reward, ax):
+    ax.plot(gaussian_filter1d(reward,1000))
+
 
 def multiple_heatmaps(im_list, fig, label_name, overlay_vals=False):
 

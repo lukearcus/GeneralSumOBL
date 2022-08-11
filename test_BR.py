@@ -1,13 +1,14 @@
 from Kuhn_poker.game import *
 from agents.players import *
 import agents.learners as learners
-from UI.plot_funcs import plot_everything
+from UI.plot_funcs import reward_smoothed
 from functions import play_game
+import matplotlib.pyplot as plt
 
 game = Kuhn_Poker_int_io()
 games_per_lvl=100000
 num_players = 2
-RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6, extra_samples = 0)\
+RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6, init_lr=0.01, extra_samples = 0)\
                for p in range(num_players)]
 fict_game = Fict_Kuhn_int()
 pol = [np.ones((6,2))/2 for i in range(2)]
@@ -19,7 +20,7 @@ pol = [np.array([[2/3, 1/3],[2/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,1/3],[2/3,1/3]]) 
 pol = [np.array([[0.816, 0.184],[0.811,0.189],[0.811,0.189],[0.375,0.625],[0.625,0.375],[0.625,0.376]]),\
        np.array([[0.53, 0.47],[0.771,0.229],[0.775,0.225],[0.159,0.841],[0.842,0.158],[0.838,0.162]])]
 
-alpha=0.0
+alpha=0.1
 pol = [np.array([[alpha, 1-alpha],[0,1],[3*alpha,1-3*alpha],[0,1],[alpha+1/3,2/3-alpha],[1,0]]),\
        np.array([[1/3, 2/3],[0,1],[1,0],[0,1],[1/3,2/3],[1,0]])]
 
@@ -49,5 +50,9 @@ print(pols[0])
 print(pols[1])
 print(V_1)
 print(V_2)
+fig = plt.figure()
+ax = fig.subplots()
+reward_smoothed(reward_hist, ax)
+plt.show()
 
 import pdb; pdb.set_trace()

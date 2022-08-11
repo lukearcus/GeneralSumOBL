@@ -1,7 +1,6 @@
 from Kuhn_poker.game import *
 from agents.players import *
 import agents.learners as learners
-from scipy.ndimage.filters import gaussian_filter1d
 from UI.plot_funcs import plot_everything
 from functions import play_game
 
@@ -56,6 +55,6 @@ belief_hist.append(bels)
 #pol_hist = pol_hist[-5:]
 #belief_hist = belief_hist[-5:]
 
-plot_everything(pol_hist, belief_hist, "kuhn")
+plot_everything(pol_hist, belief_hist, "kuhn", reward)
 
 import pdb; pdb.set_trace()
