@@ -15,10 +15,10 @@ time = 30
 
 #test
 extras = 0
-num_BR = 10000
-num_mixed = 1000
+num_BR = 5000
+num_mixed = 5000
 iters = 100000
-time = 60
+time = 300
 
 KP_game = game.Kuhn_Poker_int_io()
 
