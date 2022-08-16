@@ -4,6 +4,7 @@ import agents.learners as learners
 from UI.plot_funcs import reward_smoothed
 from functions import play_game
 import matplotlib.pyplot as plt
+import numpy as np
 
 game = Kuhn_Poker_int_io()
 games_per_lvl=100000
@@ -28,31 +29,40 @@ players = [RL(RL_learners[0],0), fixed_pol(pol[1])]
 
 reward_hist = []
 
+change = [[], []]
 for i in range(games_per_lvl):
+    old_pol = np.copy(players[0].opt_pol)
     reward_hist.append(float(play_game(players, game)))
+    change[0].append(np.linalg.norm(players[0].opt_pol-old_pol))
 
 R = reward_hist[-100:]
 pols = []
 pols.append(players[0].opt_pol)
-V_1 = players[0].learner.advantage_func.V
+#V_1 = players[0].learner.advantage_func.V
 
 players = [fixed_pol(pol[0]), RL(RL_learners[1],1)] 
 
 for i in range(games_per_lvl):
+    old_pol = np.copy(players[1].opt_pol)
     reward_hist.append(-float(play_game(players, game)))
+    change[1].append(np.linalg.norm(players[1].opt_pol-old_pol))
 
 R += reward_hist[-100:]
 pols.append(players[1].opt_pol)
-V_2 = players[1].learner.advantage_func.V
+#V_2 = players[1].learner.advantage_func.V
 
 print(sum(R)/200)
 print(pols[0])
 print(pols[1])
-print(V_1)
-print(V_2)
+#print(V_1)
+#print(V_2)
 fig = plt.figure()
 ax = fig.subplots()
 reward_smoothed(reward_hist, ax)
+
+plt.plot(change[0])
+plt.plot(change[1])
 plt.show()
+
 
 import pdb; pdb.set_trace()
