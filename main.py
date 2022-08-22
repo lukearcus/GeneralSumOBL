@@ -1,8 +1,8 @@
-from Kuhn_poker.game import *
+from game.kuhn import *
 from agents.players import *
 import agents.learners as learners
 from UI.plot_funcs import plot_everything
-from functions import play_game
+from functions import *
 import numpy as np
 import sys
 
@@ -22,14 +22,19 @@ def main():
                 return(-1)
         else:
             num_lvls = 10
-        averaged ='--avg' in sys.argv or '-a' in sys.argv
+    else:
+        num_lvls = 10
+    averaged_bel ='--avg_bel' in sys.argv or '-ab' in sys.argv
+    averaged_pol ='--avg_pol' in sys.argv or '-ap' in sys.argv
     games_per_lvl=100000
     
     num_players = 2
-    RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6, extra_samples = 0)\
+    RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage,\
+                   game.num_actions[p], game.num_states[p], extra_samples = 0)\
                    for p in range(num_players)]
     fict_game = Fict_Kuhn_int()
-    
+    exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
+                                            game.num_actions[p], game.num_states[p]) 
     #players = [RL(RL_learners[p],p) for p in range(num_players)]
     players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
     
@@ -42,7 +47,9 @@ def main():
     reward_hist = [[0 for i in range(games_per_lvl)] for lvl in range(num_lvls)]
     pol_hist = []
     belief_hist = []
+    avg_pols = []
     avg_bels = []
+    exploitability = []
     for lvl in range(num_lvls):
         pols = []
         bels = []
@@ -55,7 +62,7 @@ def main():
                 bels.append(np.zeros((1,1)))
         pol_hist.append(pols)
         belief_hist.append(bels)
-        if averaged:
+        if averaged_bel:
             new_avg_bels = []
             for p_id, p in enumerate(players):
                 total_bel = np.zeros_like(belief_hist[0][p_id])
@@ -65,6 +72,20 @@ def main():
                 p.belief = np.copy(avg_bel)
                 new_avg_bels.append(avg_bel)
             avg_bels.append(new_avg_bels)
+        if averaged_pol:
+            new_avg_pols = []
+            for p_id, p in enumerate(players):
+                total_pol = np.zeros_like(pol_hist[0][p_id])
+                for i in range(lvl+1):
+                    total_pol += pol_hist[i][p_id]
+                avg_pol = total_pol / (lvl+1)
+                new_avg_pols.append(avg_pol)
+            avg_pols.append(new_avg_pols)
+            exploit, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
+        else:
+            exploit, _, _ = calc_exploitability(pols[-1], game, exploit_learner)
+        exploitability.append(exploit)
+        print(exploit)
         for p in players:
             p.reset()
         for i in range(games_per_lvl):
@@ -81,7 +102,7 @@ def main():
     pol_hist.append(pols)
     belief_hist.append(bels)
     
-    if averaged:
+    if averaged_bel:
         new_avg_bels = []
         for p_id, p in enumerate(players):
             total_bel = np.zeros_like(belief_hist[0][p_id])
@@ -90,14 +111,32 @@ def main():
             avg_bel = total_bel / (lvl+1)
             new_avg_bels.append(avg_bel)
         avg_bels.append(new_avg_bels)
+    if averaged_pol:
+        new_avg_pols = []
+        for p_id, p in enumerate(players):
+            total_pol = np.zeros_like(pol_hist[0][p_id])
+            for i in range(lvl+1):
+                total_pol += pol_hist[i][p_id]
+            avg_pol = total_pol / (lvl+1)
+            new_avg_pols.append(avg_pol)
+        avg_pols.append(new_avg_pols)
+        exploit, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
+    else:
+        exploit, _, _ = calc_exploitability(pols[-1], game, exploit_learner)
+    exploitability.append(exploit)
     #pol_hist = pol_hist[-5:]
     #belief_hist = belief_hist[-5:]
     
-    if averaged:
-        plot_everything(pol_hist, avg_bels, "kuhn", reward_hist[-1])
+    if averaged_pol:
+        pol_plot = avg_pols
     else:
-        plot_everything(pol_hist, belief_hist, "kuhn", reward_hist[-1])
-    
+        pol_plot = pol_hist
+    if averaged_bel:
+        bel_plot = avg_bels
+    else:
+        bel_plot = belief_hist
+    plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
+     
     import pdb; pdb.set_trace()
     return 0
 

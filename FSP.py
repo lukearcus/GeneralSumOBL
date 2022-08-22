@@ -2,6 +2,8 @@ import numpy as np
 import random
 import time
 import logging
+from agents import learners
+from functions import calc_exploitability
 log = logging.getLogger(__name__)
 
 class FSP:
@@ -48,6 +50,7 @@ class FSP:
 
         exploitability = []
         tic = time.perf_counter()
+        exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6) 
         for j in range(2,self.max_iters):
             eta_j = 1/j
             #eta_j = 1/2
@@ -71,7 +74,11 @@ class FSP:
             beta.append(new_beta)
             #import pdb; pdb.set_trace()
             if j%self.est_exploit_freq == 0:
-                exploitability.append(self.est_exploitability(sigma, new_beta))
+
+                exploit, _, _ = calc_exploitability(new_pi, self.game, exploit_learner)
+                log.info("exploitability: " + str(exploit))
+                exploitability.append(exploit)
+                #exploitability.append(self.est_exploitability(sigma, new_beta))
             toc = time.perf_counter()
             if toc-tic > self.max_time:
                 break
@@ -110,13 +117,13 @@ class FSP:
     #    for player in range(self.num_players):
             
 
-    def est_exploitability(self, pi, beta):
+    def est_exploitability(self, pol, br):
         #BRs = self.calc_BRs(pi)
         R = [0 for i in range(self.num_players)]
-        for i in range(self.exploitability_iters):
-            for p in range(self.num_players):
-                strat = pi.copy()
-                strat[p] = beta[p]
+        for p in range(self.num_players):
+            strat = pol.copy()
+            strat[p] = br[p]
+            for i in range(self.exploitability_iters):
                 buff = self.play_game(strat)
                 R[p] += buff[p][-1]["r"]
         

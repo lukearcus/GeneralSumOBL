@@ -9,7 +9,7 @@ LABEL_SETS = {
         'kuhn_belief': {'x_ticks':("1","2","3"),'y_ticks':("1, no bets", "2, no bets", "3, no bets", "1, bet", "2, bet", "3, bet"),'x_label':"opponent card",'y_label':"state"},
         }
 
-def plot_everything(pols, bels, game, reward):
+def plot_everything(pols, bels, game, reward, exploitability):
     fig = plt.figure(figsize=[16, 12])
     if bels is not None:
         subfigs = fig.subfigures(1,3, width_ratios=[3,3,1])
@@ -25,6 +25,9 @@ def plot_everything(pols, bels, game, reward):
         fig2 = plt.figure()
         ax = fig2.subplots()
         reward_smoothed(reward, ax)
+        fig3 = plt.figure()
+        ax = fig3.subplots()
+        ax.plot(exploitability)
     else:
         multiple_heatmaps(pols, fig, game + "_policy")
         fig.suptitle('Policies', fontsize=32)
@@ -35,7 +38,10 @@ def reward_smoothed(reward, ax):
     ax.plot(gaussian_filter1d(reward,1000))
 
 
-def multiple_heatmaps(im_list, fig, label_name, labels = False, overlay_vals=False):
+def multiple_heatmaps(im_list, fig, label_name, labels = False, overlay_vals=False, max_ims=10):
+    
+    if len(im_list) > max_ims:
+        im_list = im_list[-max_ims:]
 
     num_ims = len(im_list)
     axs = fig.subplots(num_ims,2)

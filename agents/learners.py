@@ -264,7 +264,7 @@ class complete_learner:
 
     def learn(self):
         self.RL_learner.reset()
-        for i in range(50):
+        for i in range(10):
             self.beta = self.RL_learner.learn()
         self.pi = self.SL_learner.learn()
         return self.beta, self.pi
