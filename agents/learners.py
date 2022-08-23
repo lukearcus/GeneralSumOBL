@@ -260,11 +260,12 @@ class value_advantage(advantage_func_base):
 
 class complete_learner:
 
-    def __init__(self, RL, SL):
+    def __init__(self, RL, SL, num_loops=1):
         self.RL_learner = RL
         self.SL_learner = SL
         self.beta = RL.opt_pol
         self.pi = SL.learned_pol
+        self.num_loops = num_loops
 
     def update_memory(self, data):
         self.RL_learner.update_memory(data)
@@ -272,7 +273,7 @@ class complete_learner:
 
     def learn(self):
         self.RL_learner.reset()
-        #for i in range(10):
-        self.beta = self.RL_learner.learn()
+        for i in range(self.num_loops):
+            self.beta = self.RL_learner.learn()
         self.pi = self.SL_learner.learn()
         return self.beta, self.pi

@@ -77,8 +77,10 @@ class FSP:
             #import pdb; pdb.set_trace()
             if j%self.est_exploit_freq == 0:
 
-                #exploit, _, _ = calc_exploitability(new_pi, self.game, exploit_learner)
-                exploit = self.est_exploitability(new_pi, new_beta)
+                exploit, br_pols, _ = calc_exploitability(new_pi, self.game, exploit_learner)
+                #exploit = self.est_exploitability(new_pi, new_beta)
+                import pdb; pdb.set_trace()
+                # compare br_pols with beta
                 log.info("exploitability: " + str(exploit))
                 exploitability.append(exploit)
             toc = time.perf_counter()

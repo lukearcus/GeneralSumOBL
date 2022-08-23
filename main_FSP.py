@@ -20,16 +20,17 @@ num_BR = 300
 num_mixed = 50
 iters = 1000000
 time = 300
+RL_iters = 10
 
 #new test
-extras = 0
-num_BR = 30
-num_mixed = 0
-iters = 10000000
-time = 100
+#extras = 0
+#num_BR = 30
+#num_mixed = 0
+#iters = 10000000
+#time = 100
 
 game_obj = leduc.leduc_int()
-#game_obj = KP.Kuhn_Poker_int_io()
+game_obj = KP.Kuhn_Poker_int_io()
 
 RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, game_obj.num_actions[p],\
                 game_obj.num_states[p], init_adv=0, extra_samples = extras)\
@@ -37,7 +38,7 @@ RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage,
 RL_learners = [learners.Q_learn(0, (game_obj.num_states[p], game_obj.num_actions[p])) for p in range(2)] 
 SL_learners = [learners.count_based_SL((game_obj.num_states[p], game_obj.num_actions[p])) for p in range(2)]
 
-agents = [learners.complete_learner(RL_learners[p], SL_learners[p]) for p in range(2)]
+agents = [learners.complete_learner(RL_learners[p], SL_learners[p], num_loops = RL_iters) for p in range(2)]
 
 worker = FSP.FSP(game_obj, agents, max_iters=iters, max_time=time, m=num_BR, n=num_mixed, exploit_freq=1)
 pi, exploitability, data = worker.run_algo()
