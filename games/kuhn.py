@@ -1,8 +1,8 @@
 import random
 from itertools import product
-import base
+from games.base import base
 
-class Kuhn_Poker(base.base):
+class Kuhn_Poker(base):
     curr_player = 0
     curr_bets = [0,0]
     cards = [0,0]

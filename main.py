@@ -1,4 +1,5 @@
-from game.kuhn import *
+from games.kuhn import *
+from games.leduc import *
 from agents.players import *
 import agents.learners as learners
 from UI.plot_funcs import plot_everything
@@ -8,6 +9,7 @@ import sys
 
 def main():
     game = Kuhn_Poker_int_io()
+    game = leduc_int()
     if len(sys.argv) > 1:
         if '--lvls' in sys.argv:
             level_ind = sys.argv.index('--lvls')
@@ -34,9 +36,9 @@ def main():
                    for p in range(num_players)]
     fict_game = Fict_Kuhn_int()
     exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
-                                            game.num_actions[p], game.num_states[p]) 
-    #players = [RL(RL_learners[p],p) for p in range(num_players)]
-    players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
+                                            game.num_actions[0], game.num_states[0]) 
+    players = [RL(RL_learners[p],p) for p in range(num_players)]
+    #players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
     
     for p in range(num_players):
         curr_player = players.pop(p)
@@ -83,7 +85,7 @@ def main():
             avg_pols.append(new_avg_pols)
             exploit, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
         else:
-            exploit, _, _ = calc_exploitability(pols[-1], game, exploit_learner)
+            exploit, _, _ = calc_exploitability(pols, game, exploit_learner)
         exploitability.append(exploit)
         print(exploit)
         for p in players:
@@ -122,7 +124,7 @@ def main():
         avg_pols.append(new_avg_pols)
         exploit, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
     else:
-        exploit, _, _ = calc_exploitability(pols[-1], game, exploit_learner)
+        exploit, _, _ = calc_exploitability(pols, game, exploit_learner)
     exploitability.append(exploit)
     #pol_hist = pol_hist[-5:]
     #belief_hist = belief_hist[-5:]

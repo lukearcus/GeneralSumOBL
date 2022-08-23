@@ -1,3 +1,6 @@
+from games.base import base
+from itertools import product
+import random
 
 class leduc(base):
     curr_player = 0
@@ -9,10 +12,10 @@ class leduc(base):
     pub_card_revealed = False
     num_players = 2
 
-    def __init__(self):
+    def __init__(self, _num_players=2):
         random.seed(1)
         self.num_players = _num_players
-        self.num_states = [6*(3+5*3*3), 6*(3+5*3*3)] 
+        self.num_states = [6*(3+6*3*3), 6*(3+6*3*3)] 
         # 6 possible cards in hand, 3 information states for each player in first round,
         # then 3 possible starting pots for second round & new card in public (one of 5 left)
         self.num_actions = [3 for i in range(self.num_players)] # call/check, raise, fold (sometimes some not allowed)
@@ -23,7 +26,8 @@ class leduc(base):
         random.shuffle(cards_available)
         self.cards = cards_available[:self.num_players]
         self.pub_card = cards_available[self.num_players]
-        
+        self.end_first_bets = 0
+
         self.num_raises = 0
         self.curr_player = 0
         self.pub_card_revealed = False
@@ -63,12 +67,14 @@ class leduc(base):
             if sum(self.folded) == self.num_players -1:
                 self.end_game()
             else:
-                non_folded_bets = [bet for p, bet in enumerate(self.curr_bets) if not self.folded[p]]
-                if len(set(non_folded_bets)) == 1:
-                    if self.pub_card_revealed:
-                        self.end_game()
-                    else:
-                        self.pub_card_revealed = True
+                if max(self.curr_bets) > 1 or self.curr_player == self.num_players-1:
+                    non_folded_bets = [bet for p, bet in enumerate(self.curr_bets) if not self.folded[p]]
+                    if len(set(non_folded_bets)) == 1:
+                        if self.pub_card_revealed:
+                            self.end_game()
+                        else:
+                            self.pub_card_revealed = True
+                            self.end_first_bets = self.curr_bets[0]
         player_chosen = False
         while not player_chosen:
             self.curr_player += 1
@@ -97,19 +103,29 @@ class leduc(base):
 
 class leduc_int(leduc):
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _num_players=2):
+        super().__init__(_num_players)
         self.first_poss_pots = list(product([1,3,5], repeat=self.num_players-1))
-        self.second_poss_pots = list(product([
-        self.poss_pots = list(product([1,3,5,7,9,11,13],repeat=self.num_players-1))
+        self.second_poss_pots = list(product([0,4,8], repeat=self.num_players-1))
+        #self.poss_pots = list(product([1,3,5,7,9,11,13],repeat=self.num_players-1))
     
     def observe(self):    
         card, game_pot, pub_card, reward = super().observe()
         if card != -1:
             pot = game_pot.copy()
             pot.pop(self.curr_player)
-            pot_ind = self.poss_pots.index(tuple(pot))
-            return (pub_card+1)*9 +pot_ind*(6)+card, reward
+            if pub_card == -1:
+                pot_ind = self.first_poss_pots.index(tuple(pot))
+                return pot_ind*(6)+card, reward
+            else:
+                end_round1_ind = (self.end_first_bets-1)/2
+                true_second_poss_pots = [tuple([elem+self.end_first_bets for elem in pot]) \
+                                         for pot in self.second_poss_pots]
+                pot_ind = true_second_poss_pots.index(tuple(pot))
+                poss_pub_cards = list(range(6))
+                poss_pub_cards.pop(card)
+                pub_card_ind = poss_pub_cards.index(pub_card) + 1
+                return int((pub_card_ind)*3*3*6+end_round1_ind*3*6+pot_ind*6+card), reward
         else:
             return -1, reward
 

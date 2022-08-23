@@ -34,7 +34,7 @@ class FSP:
                 strat = sigma.copy()
                 strat[p] = beta[p]
                 result = self.play_game(strat)
-                exploitability += result[p][-1]['r']/(self.m)
+                #exploitability += result[p][-1]['r']/(self.m)
                 D[p].append((result[p],strat[p],True))
         return D, exploitability, sigma
 
@@ -50,8 +50,9 @@ class FSP:
 
         exploitability = []
         tic = time.perf_counter()
-        exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, 2, 6) 
-        for j in range(2,self.max_iters):
+        exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
+                                                self.game.num_actions[0], self.game.num_states[0]) 
+        for j in range(1,self.max_iters):
             eta_j = 1/j
             #eta_j = 1/2
             D, curr_exploitability, sigma = self.gen_data(pi[-1],beta[-1], eta_j)
@@ -103,7 +104,10 @@ class FSP:
             player = self.game.curr_player
             _, r = self.game.observe()
             self.game.action(None)
-            buffer[player][-1]["r"] = r
+            #import pdb; pdb.set_trace()
+            if len(buffer[player]) > 0:
+                buffer[player][-1]["r"] = r
+
         return buffer
 
     #def calc_true_BRs(self, pol):
