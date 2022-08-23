@@ -61,24 +61,29 @@ class count_based_SL(SL_base):
 
 class Q_learn(RL_base):
 
-    def __init__(self, init_q, Q_shape, num_samples=100, init_lr = 0.05, df=1.0):
+    def __init__(self, init_q, Q_shape, extra_samples=0, init_lr = 0.05, df=1.0):
         self.Q = np.ones(Q_shape)*init_q
+        self.init_q_mat = np.copy(self.Q)
+        self.T = 1
         self.calc_pol()
-        super().__init__(num_samples, init_lr, df)
+        super().__init__(extra_samples, init_lr, df)
     
     def calc_pol(self):
         beta = np.zeros(self.Q.shape)
         for i, s in enumerate(self.Q):
-            beta[i, :] = np.exp(self.Q[i]/T)
+            beta[i, :] = np.exp(self.Q[i]/self.T)
             beta[i, :] /= np.sum(beta[i])
         self.opt_pol = beta
 
     def learn(self):
         self.iteration += 1
         lr = self.init_lr/(1+0.003*np.sqrt(self.iteration))
-        T = 1/(1+0.2*np.sqrt(self.iteration))
+        self.T = 1/(1+0.02*np.sqrt(self.iteration))
 
-        RL_buff = random.sample(self.memory, min(self.num_samples, len(self.memory)))
+        RL_buff = random.sample(self.memory, min(self.extra_samples, len(self.memory)))
+        RL_buff += self.memory[-min(self.last_round, len(self.memory)):]
+        #RL_buff = random.sample(self.memory, min(self.num_samples, len(self.memory)))
+        
         for elem in RL_buff:
             if elem["s'"] == -1:
                 update = elem["r"] - self.Q[elem["s"],elem["a"]] 
@@ -88,7 +93,10 @@ class Q_learn(RL_base):
             self.Q[elem["s"],elem["a"]] += lr*update
         self.calc_pol()
         return self.opt_pol
-
+    
+    def reset(self):
+        self.Q = self.init_q_mat
+        
 
 class actor_critic(RL_base):
 
@@ -264,7 +272,7 @@ class complete_learner:
 
     def learn(self):
         self.RL_learner.reset()
-        for i in range(10):
-            self.beta = self.RL_learner.learn()
+        #for i in range(10):
+        self.beta = self.RL_learner.learn()
         self.pi = self.SL_learner.learn()
         return self.beta, self.pi

@@ -20,6 +20,7 @@ class FSP:
         self.est_exploit_freq = exploit_freq
 
     def gen_data(self, pi, beta, eta):
+        #import pdb; pdb.set_trace()
         sigma = []
         for p in range(self.num_players):
             sigma.append((1-eta)*pi[p]+eta*beta[p])
@@ -52,7 +53,7 @@ class FSP:
         tic = time.perf_counter()
         exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
                                                 self.game.num_actions[0], self.game.num_states[0]) 
-        for j in range(1,self.max_iters):
+        for j in range(1,self.max_iters): # start from 1 or 2?
             eta_j = 1/j
             #eta_j = 1/2
             D, curr_exploitability, sigma = self.gen_data(pi[-1],beta[-1], eta_j)
@@ -76,10 +77,10 @@ class FSP:
             #import pdb; pdb.set_trace()
             if j%self.est_exploit_freq == 0:
 
-                exploit, _, _ = calc_exploitability(new_pi, self.game, exploit_learner)
+                #exploit, _, _ = calc_exploitability(new_pi, self.game, exploit_learner)
+                exploit = self.est_exploitability(new_pi, new_beta)
                 log.info("exploitability: " + str(exploit))
                 exploitability.append(exploit)
-                #exploitability.append(self.est_exploitability(sigma, new_beta))
             toc = time.perf_counter()
             if toc-tic > self.max_time:
                 break
@@ -129,10 +130,10 @@ class FSP:
             strat[p] = br[p]
             for i in range(self.exploitability_iters):
                 buff = self.play_game(strat)
-                R[p] += buff[p][-1]["r"]
+                if len(buff[p]) > 0:
+                    R[p] += buff[p][-1]["r"]
         
         for p in range(self.num_players):
             R[p] /= self.exploitability_iters
         #import pdb; pdb.set_trace()
-        log.info("Exploitability: " + str(sum(R)))
         return sum(R)
