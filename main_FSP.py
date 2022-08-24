@@ -19,7 +19,7 @@ extras = 0
 num_BR = 30000
 num_mixed = 20000
 iters = 1000000
-time = 600
+time = 3600
 RL_iters = 1
 check_freq = 10
 

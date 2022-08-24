@@ -81,7 +81,7 @@ class FSP:
                 exploit = self.est_exploitability(new_pi, new_beta)
                 #import pdb; pdb.set_trace()
                 # compare br_pols with beta
-                #log.info("exploitability: " + str(exploit_calced_br))
+                log.info("exploitability: " + str(exploit_calced_br))
                 log.info("exploitability using beta: " + str(exploit))
                 exploitability.append(exploit)
             toc = time.perf_counter()
