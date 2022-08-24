@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 class FSP:
 
-    def __init__(self, _game, _agents, max_iters=100, max_time=300, m=50, n=50, exploit_iters=100, exploit_freq=10):
+    def __init__(self, _game, _agents, max_iters=100, max_time=300, m=50, n=50, exploit_iters=100000, exploit_freq=10):
         self.game = _game
         self.agents = _agents
         self.num_players = self.game.num_players
@@ -71,23 +71,23 @@ class FSP:
                 log.debug("p" + str(p+1) + " new_beta: " + str(new_beta[p]))
                 #import pdb; pdb.set_trace()
                 diff += np.linalg.norm(new_pi[p]-sigma[p])
-            log.info("norm difference between new_pi and sigma: " +str(diff))
+            log.debug("norm difference between new_pi and sigma: " +str(diff))
             pi.append(new_pi)
             beta.append(new_beta)
             #import pdb; pdb.set_trace()
             if j%self.est_exploit_freq == 0:
 
-                exploit, br_pols, _ = calc_exploitability(new_pi, self.game, exploit_learner)
-                #exploit = self.est_exploitability(new_pi, new_beta)
-                import pdb; pdb.set_trace()
+                exploit_calced_br, br_pols, _, values = calc_exploitability(new_pi, self.game, exploit_learner)
+                exploit = self.est_exploitability(new_pi, new_beta)
+                #import pdb; pdb.set_trace()
                 # compare br_pols with beta
-                log.info("exploitability: " + str(exploit))
+                #log.info("exploitability: " + str(exploit_calced_br))
+                log.info("exploitability using beta: " + str(exploit))
                 exploitability.append(exploit)
             toc = time.perf_counter()
             if toc-tic > self.max_time:
                 break
-        #import pdb; pdb.set_trace()
-        return pi[-1], exploitability, (pi, beta, D)
+        return pi[-1], exploitability, {'pi': pi, 'beta':beta, 'D': D}
 
     def play_game(self, strat):
         buffer = [[] for i in range(self.num_players)]
@@ -125,6 +125,7 @@ class FSP:
             
 
     def est_exploitability(self, pol, br):
+        #import pdb; pdb.set_trace()
         #BRs = self.calc_BRs(pi)
         R = [0 for i in range(self.num_players)]
         for p in range(self.num_players):

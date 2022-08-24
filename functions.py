@@ -39,7 +39,7 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
         exploit_rewards[0].append(float(play_game(players, game)))
 
     p_avg_exploitability[0] = sum(exploit_rewards[0])/len(exploit_rewards[0])
-    #V_1 = players[0].learner.advantage_func.V
+    V_1 = learner.advantage_func.V
     
     learner.reset()
     learner.wipe_memory()
@@ -59,11 +59,11 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
 
     p_avg_exploitability[1] = sum(exploit_rewards[1])/len(exploit_rewards[1])
     
-    #V_2 = players[1].learner.advantage_func.V
+    V_2 = learner.advantage_func.V
     
     avg_exploitability = sum(p_avg_exploitability)
     learner.reset()
     learner.wipe_memory()
 
     #import pdb; pdb.set_trace()
-    return avg_exploitability, new_pols, reward_hist
+    return avg_exploitability, new_pols, reward_hist, (V_1, V_2)

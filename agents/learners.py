@@ -22,11 +22,14 @@ class RL_base(learner_base):
         self.extra_samples = extra_samples
         self.gamma = df
         self.init_lr = init_lr
+        self.max_mem = 100000
 
     def update_memory(self, data):
         self.last_round = len(data)
         for elem in data:
             self.memory += elem[0]
+            if len(self.memory) > self.max_mem:
+                self.memory.pop(0)
 
 class SL_base(learner_base):
     learned_pol = None
@@ -59,7 +62,7 @@ class count_based_SL(SL_base):
         self.learned_pol = pi
         return pi
 
-class Q_learn(RL_base):
+class fitted_Q_iteration(RL_base):
 
     def __init__(self, init_q, Q_shape, extra_samples=0, init_lr = 0.05, df=1.0):
         self.Q = np.ones(Q_shape)*init_q
@@ -95,7 +98,8 @@ class Q_learn(RL_base):
         return self.opt_pol
     
     def reset(self):
-        self.Q = self.init_q_mat
+        pass
+        #self.Q = self.init_q_mat
         
 
 class actor_critic(RL_base):
@@ -179,6 +183,30 @@ class softmax(pol_func_base):
     def update(self):
         self.thetas = np.minimum(10**2,np.maximum(-10**2,self.thetas))
         self.policy = np.exp(self.thetas)/np.sum(np.exp(self.thetas),axis=1)[:,np.newaxis]
+        return self.policy
+    
+    def reset(self):
+        self.thetas = np.ones_like(self.thetas)
+        self.update()
+
+class linpol(pol_func_base):
+
+    def __init__(self, num_states, num_actions):
+        self.thetas = np.ones((num_states, 1))/2
+        self.update()
+
+    def grad_log(self, s, a):
+        grad = np.zeros_like(self.thetas)
+        for act in range(self.thetas.shape[1]):
+            if a == 0:
+                grad[s] = min(1/(self.thetas[s]),100)
+            else:
+                grad[s] = max((-1)/(1-self.thetas[s]),-100)
+        return grad
+
+    def update(self):
+        self.thetas = np.minimum(1,np.maximum(0,self.thetas))
+        self.policy = np.hstack((self.thetas, 1-self.thetas))
         return self.policy
     
     def reset(self):
