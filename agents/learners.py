@@ -104,11 +104,12 @@ class fitted_Q_iteration(RL_base):
 
 class actor_critic(RL_base):
 
-    def __init__(self, pol_func, advantage_func, num_actions, num_states, init_adv = 0, extra_samples=10, init_lr=0.05, df=1.0):
+    def __init__(self, pol_func, advantage_func, num_actions, num_states, init_adv = 0, extra_samples=10, init_lr=0.05, df=1.0, tol=999):
         self.pol_func = pol_func(num_states, num_actions)
         self.advantage_func = advantage_func(init_adv, num_states, num_actions, df)
         self.opt_pol = self.pol_func.policy
         self.memory = []
+        self.tol=tol
         super().__init__(extra_samples, init_lr, df)
 
     def reset(self):
@@ -116,20 +117,24 @@ class actor_critic(RL_base):
         self.advantage_func.reset()
 
     def learn(self):
+
         self.iteration += 1
         lr = self.init_lr/(1+0.003*np.sqrt(self.iteration))
-        RL_buff = random.sample(self.memory, min(self.extra_samples, len(self.memory)))
-        RL_buff += self.memory[-min(self.last_round, len(self.memory)):]
-        
-        for elem in RL_buff:
-            grad_log_theta = self.pol_func.grad_log(elem["s"], elem["a"])
-            advantage = self.advantage_func.eval(elem["s"], elem["a"], elem["r"], elem["s'"])
-            theta_update = grad_log_theta*advantage
-            a_prime = np.argmax(np.random.multinomial(1, pvals=self.opt_pol[elem["s'"]]))
-            delta = self.advantage_func.calc_delta(elem["s"], elem["a"], elem["r"], elem["s'"], a_prime)
-            self.advantage_func.update(lr*delta, elem["s"], elem["a"])
-            self.pol_func.thetas += lr*theta_update
-        self.opt_pol = self.pol_func.update()
+        prev_pol = np.copy(self.opt_pol) - self.tol - 1
+        while np.linalg.norm(prev_pol - self.opt_pol) > self.tol:
+            prev_pol = np.copy(self.opt_pol)
+            RL_buff = random.sample(self.memory, min(self.extra_samples, len(self.memory)))
+            RL_buff += self.memory[-min(self.last_round, len(self.memory)):]
+            
+            for elem in RL_buff:
+                grad_log_theta = self.pol_func.grad_log(elem["s"], elem["a"])
+                advantage = self.advantage_func.eval(elem["s"], elem["a"], elem["r"], elem["s'"])
+                theta_update = grad_log_theta*advantage
+                a_prime = np.argmax(np.random.multinomial(1, pvals=self.opt_pol[elem["s'"]]))
+                delta = self.advantage_func.calc_delta(elem["s"], elem["a"], elem["r"], elem["s'"], a_prime)
+                self.advantage_func.update(lr*delta, elem["s"], elem["a"])
+                self.pol_func.thetas += lr*theta_update
+            self.opt_pol = self.pol_func.update()
         return self.opt_pol
 
 class pol_func_base:
@@ -286,6 +291,7 @@ class value_advantage(advantage_func_base):
     def reset(self):
         self.V = np.ones_like(self.V) * self.init_adv
 
+
 class complete_learner:
 
     def __init__(self, RL, SL, num_loops=1):
@@ -305,3 +311,102 @@ class complete_learner:
             self.beta = self.RL_learner.learn()
         self.pi = self.SL_learner.learn()
         return self.beta, self.pi
+
+class kuhn_exact_solver:
+
+    def calc_opt(self, opp_pol, p_id):
+        opt_pol = np.zeros((6,2))
+        if p_id == 1:
+            opt_pol[3,1] = 1 # always fold with a 1 if raised
+            opt_pol[5,0] = 1 # always call with a 3 if raised
+
+            p_bet_given_card = opp_pol[0:3,0]/2
+            p_bet = np.sum(p_bet_given_card) - p_bet_given_card[1]
+            p_cards_given_bet = p_bet_given_card/p_bet
+            p_cards_given_bet[1] = 0
+            if p_cards_given_bet[0] > 0.25:
+                opt_pol[4,0] = 1
+            elif p_cards_given_bet[0] < 0.25:
+                opt_pol[4,1] = 1
+            else:
+                opt_pol[4,0] = 1/3
+                opt_pol[4,1] = 2/3
+
+            for i in range(3):
+                bet_r = 0
+                check_r = 0
+                for j in range(3):
+                    if i != j:
+                        bet_r += 0.5*opp_pol[j+3,1]
+                        if j < i:
+                            bet_r += 0.5*opp_pol[j+3,0]*2
+                            check_r += 0.5*opp_pol[j,1]*1
+                            check_r += 0.5*opp_pol[j,0]*(opt_pol[i+3,0]*2-opt_pol[i+3,1])
+                        else:
+                            bet_r += 0.5*opp_pol[j+3,0]*(-2)
+                            check_r += 0.5*opp_pol[j,1]*(-1)
+                            check_r += 0.5*opp_pol[j,0]*((-opt_pol[i+3,0]*2)-opt_pol[i+3,1])
+                if bet_r > check_r:
+                    opt_pol[i,0] = 1
+                elif check_r > bet_r:
+                    opt_pol[i,1] = 1
+                else:
+                    if i == 0:
+                        opt_pol[i,0] = 1/3
+                        opt_pol[i,1] = 2/3
+                    if i == 1:
+                        opt_pol[i,0] = 1
+                    if i == 2:
+                        opt_pol[i,0] = 1
+        else:
+            opt_pol[3,1] = 1
+            opt_pol[5,0] = 1
+            opt_pol[2,0] = 1
+
+            p_act_given_card_times_p_card = (opp_pol[0:3,:]/2)
+            belief = np.zeros((6,3))
+            for i in range(3):
+                p_act = np.sum(p_act_given_card_times_p_card, axis = 0) - p_act_given_card_times_p_card[i,:]
+                p_cards_given_act = p_act_given_card_times_p_card/p_act
+                rem_state = p_cards_given_act
+                rem_state[i,:] = 0
+                p_cards_given_state = rem_state.T
+                belief[3+i, :] = p_cards_given_state[0,:]
+                belief[i, :] = p_cards_given_state[1,:]
+            if belief[4,0] < 0.25:
+                opt_pol[4,1] = 1
+            elif belief[4,0] > 0.25:
+                opt_pol[4,0] = 1
+            else:
+                opt_pol[4,0] = 1/3 # doesn't actually matter what this is
+                opt_pol[4,1] = 2/3 # doesn't actually matter what this is
+
+            belief = belief[0:3] # discard the 2nd half of belief since we're done with it
+            opp_pol = opp_pol[3:] # same for policy
+            check_rewards = [-1, belief[1,0]-belief[1,2], 1]
+            bet_rewards = []
+            for i in range(2):
+                bet_r = 0
+                for j in range(3):
+                    if i != j:
+                        bet_r += belief[i,j] * opp_pol[j,1]
+                        if j <  i:
+                            bet_r += belief[i, j]*opp_pol[j, 0]*2
+                        else:
+                            bet_r += belief[i, j]*opp_pol[j,0]*(-2)
+                bet_rewards.append(bet_r)
+            if bet_rewards[0] > check_rewards[0]:
+                opt_pol[0,0] = 1
+            elif bet_rewards[0] < check_rewards[0]:
+                opt_pol[0, 1] = 1
+            else:
+                opt_pol[0,0] = 1/3
+                opt_pol[0,1] = 2/3
+            if bet_rewards[1] > check_rewards[1]:
+                opt_pol[1,0] = 1
+            elif bet_rewards[1] < check_rewards[1]:
+                opt_pol[1, 1] = 1
+            else:
+                opt_pol[1,1] = 1
+
+        return opt_pol

@@ -53,6 +53,7 @@ class FSP:
         tic = time.perf_counter()
         exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
                                                 self.game.num_actions[0], self.game.num_states[0]) 
+        solver = learners.kuhn_exact_solver()
         for j in range(1,self.max_iters): # start from 1 or 2?
             eta_j = 1/j
             #eta_j = 1/2
@@ -77,13 +78,18 @@ class FSP:
             #import pdb; pdb.set_trace()
             if j%self.est_exploit_freq == 0:
 
-                exploit_calced_br, br_pols, _, values = calc_exploitability(new_pi, self.game, exploit_learner)
+                true_exploit, true_br_pols, _, _ = calc_exploitability(new_pi, self.game, solver,\
+                                                                            num_iters = -1, num_exploit_iters=-1)
+                exploit_calced_br, br_pols, _, values = calc_exploitability(new_pi, self.game, exploit_learner,\
+                                                                            num_iters = -1, num_exploit_iters=-1)
                 exploit = self.est_exploitability(new_pi, new_beta)
-                #import pdb; pdb.set_trace()
                 # compare br_pols with beta
-                log.info("exploitability: " + str(exploit_calced_br))
+                for p in range(self.num_players):
+                    log.debug("p" + str(p+1) + " br: " + str(br_pols[p]))
+                log.info("exact exploitability: " + str(true_exploit))
+                log.info("exploitability with learned br: " + str(exploit_calced_br))
                 log.info("exploitability using beta: " + str(exploit))
-                exploitability.append(exploit)
+                exploitability.append(true_exploit)
             toc = time.perf_counter()
             if toc-tic > self.max_time:
                 break

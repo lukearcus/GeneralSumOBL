@@ -6,10 +6,10 @@ from UI.plot_funcs import plot_everything
 from functions import *
 import numpy as np
 import sys
+import time
+from tqdm import tqdm
 
 def main():
-    game = Kuhn_Poker_int_io()
-    game = leduc_int()
     if len(sys.argv) > 1:
         if '--lvls' in sys.argv:
             level_ind = sys.argv.index('--lvls')
@@ -24,26 +24,57 @@ def main():
                 return(-1)
         else:
             num_lvls = 10
+        if '--game' in sys.argv:
+            game_ind = sys.argv.index('--game')
+            if len(sys.argv) > game_ind:
+                if sys.argv[game_ind+1] == "kuhn":
+                    game = Kuhn_Poker_int_io()
+                    fict_game = Fict_Kuhn_int()
+                elif sys.argv[game_ind+1] == "leduc":
+                    game = leduc_int()
+                    fict_game = leduc_fict() 
+                else:
+                    print("Please enter a game choice")
+                    return -1
+            else:
+                print("Please select a game")
+                return(-1)
+        else:
+            num_lvls = 10
     else:
         num_lvls = 10
-    averaged_bel ='--avg_bel' in sys.argv or '-ab' in sys.argv
-    averaged_pol ='--avg_pol' in sys.argv or '-ap' in sys.argv
+        game = Kuhn_Poker_int_io()
+        fict_game = Fict_Kuhn_int()
+    if '--all_avg' in sys.argv or '-a' in sys.argv:
+        averaged_bel = True
+        averaged_pol = True
+        learn_with_avg = True
+    else:
+        averaged_bel ='--avg_bel' in sys.argv or '-ab' in sys.argv
+        averaged_pol ='--avg_pol' in sys.argv or '-ap' in sys.argv
+        learn_with_avg = '--avg_learn' in sys.argv or '-al' in sys.argv
     games_per_lvl=100000
+    exploit_freq= 1
     
     num_players = 2
     RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage,\
                    game.num_actions[p], game.num_states[p], extra_samples = 0)\
                    for p in range(num_players)]
-    fict_game = Fict_Kuhn_int()
     exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
-                                            game.num_actions[0], game.num_states[0]) 
-    players = [RL(RL_learners[p],p) for p in range(num_players)]
-    #players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
+                                            game.num_actions[0], game.num_states[0], tol=9999) 
+    #players = [RL(RL_learners[p],p) for p in range(num_players)]
+    players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
+    fixed_players = [fixed_pol(players[p].opt_pol) for p in range(num_players)]
     
     for p in range(num_players):
         curr_player = players.pop(p)
+        fixed_curr = fixed_players.pop(p)
         if curr_player.belief is not None:
-            curr_player.set_other_players(players)
+            if learn_with_avg:
+                curr_player.set_other_players(fixed_players)
+            else:
+                curr_player.set_other_players(players)
+        fixed_players.insert(p, fixed_curr)
         players.insert(p, curr_player)
     
     reward_hist = [[0 for i in range(games_per_lvl)] for lvl in range(num_lvls)]
@@ -52,6 +83,8 @@ def main():
     avg_pols = []
     avg_bels = []
     exploitability = []
+    times = []
+    tic = time.perf_counter()
     for lvl in range(num_lvls):
         pols = []
         bels = []
@@ -74,7 +107,7 @@ def main():
                 p.belief = np.copy(avg_bel)
                 new_avg_bels.append(avg_bel)
             avg_bels.append(new_avg_bels)
-        if averaged_pol:
+        if averaged_pol or learn_with_avg:
             new_avg_pols = []
             for p_id, p in enumerate(players):
                 total_pol = np.zeros_like(pol_hist[0][p_id])
@@ -83,15 +116,23 @@ def main():
                 avg_pol = total_pol / (lvl+1)
                 new_avg_pols.append(avg_pol)
             avg_pols.append(new_avg_pols)
-            exploit, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
-        else:
-            exploit, _, _ = calc_exploitability(pols, game, exploit_learner)
-        exploitability.append(exploit)
-        print(exploit)
+        if lvl % exploit_freq == 0:
+            if averaged_pol:
+                exploit, _, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
+            else:
+                exploit, _, _, _ = calc_exploitability(pols, game, exploit_learner)
+            exploitability.append(exploit)
+            print(exploit)
+        if learn_with_avg:
+            for p_id, p in enumerate(players):
+                for other_p_id, other_pol in enumerate(new_avg_pols):
+                    if other_p_id != p_id:
+                        p.other_players[other_p_id].opt_pol = other_pol
         for p in players:
             p.reset()
         for i in range(games_per_lvl):
             reward_hist[lvl][i] = float(play_game(players, game))
+        times.append(time.perf_counter()-tic)
     pols = []
     bels = []
     for p in players:
@@ -122,9 +163,9 @@ def main():
             avg_pol = total_pol / (lvl+1)
             new_avg_pols.append(avg_pol)
         avg_pols.append(new_avg_pols)
-        exploit, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
+        exploit, _, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
     else:
-        exploit, _, _ = calc_exploitability(pols, game, exploit_learner)
+        exploit, _, _, _ = calc_exploitability(pols, game, exploit_learner)
     exploitability.append(exploit)
     #pol_hist = pol_hist[-5:]
     #belief_hist = belief_hist[-5:]

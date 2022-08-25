@@ -107,7 +107,8 @@ class Fict_Kuhn_int(Kuhn_Poker_int_io):
         self.cards = list(self.poss_hidden[hidden_state])
         player_card = (p_state % (self.num_players+1))+1
         self.cards.insert(p_id, player_card)
-
+        if player_card == self.poss_hidden[hidden_state]:
+            return -1 # impossible state
         p_pot = (p_state // (self.num_players+1))
 
         self.curr_bets = list(self.poss_pots[p_pot])
@@ -128,6 +129,7 @@ class Fict_Kuhn_int(Kuhn_Poker_int_io):
                     self.folded[p] = not self.betted[p]
                 for p in range(first, self.num_players):
                     self.folded[p] = not self.betted[p]
+        return 0
 
     def get_hidden(self, p_id):
         curr_cards = self.cards.copy()

@@ -98,7 +98,7 @@ class fixed_pol(player):
     def reset(self):
         pass
 
-    def observe(self, observation):
+    def observe(self, observation, fict=False):
         self.state = observation[0]
         self.r = observation[1]
     
@@ -126,9 +126,15 @@ class OBL(RL):
         if not fict:
             if self.state != -1:
                 belief_probs = self.belief[self.state, :]
-                belief_state = np.argmax(np.random.multinomial(1, pvals=belief_probs))
                 #Here we do OBL
-                self.fict_game.set_state(self.state, belief_state, self.id)
+                res = -1
+                while res != 0:
+                    belief_state = np.argmax(np.random.multinomial(1, pvals=belief_probs))
+                    res = self.fict_game.set_state(self.state, belief_state, self.id)
+                    if res == -1:
+                        false_prob = belief_probs[belief_state]
+                        belief_probs[:] += false_prob/(belief_probs.size-1)
+                        belief_probs[belief_state] = 0 # set prob to 0 if it was an impossible state
                 act = self.action()
                 #if self.state == 0:
                 #    import pdb; pdb.set_trace()

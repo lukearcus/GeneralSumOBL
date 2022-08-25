@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import agents.learners as learners
 from UI.plot_funcs import FSP_plots 
 import logging
+import numpy as np
 
 #sort of working
 logging.basicConfig(level=logging.INFO, format='%(relativeCreated)6d %(threadName)s %(message)s')
@@ -18,18 +19,22 @@ time = 300
 extras = 0
 num_BR = 30000
 num_mixed = 20000
-iters = 1000000
-time = 3600
+iters = 100000000
+time = 36000
 RL_iters = 1
-check_freq = 10
+check_freq = 1
 
 #new test
 #extras = 0
-#num_BR = 30
-#num_mixed = 0
-#iters = 10000000
-#time = 100
-
+#Num_BR = 3000
+#Num_mixed = 2000
+#Iters = 10000000
+#RL_iters = 1000
+#Time = 300
+#pol = np.array([[1/3,2/3],[0,1],[1,0],[0,1],[1/3,2/3],[1,0]])
+#pol = np.ones((6,2))/2
+#exact = learners.kuhn_exact_solver(pol,1)
+#import pdb; pdb.set_trace()
 game_obj = leduc.leduc_int()
 game_obj = KP.Kuhn_Poker_int_io()
 

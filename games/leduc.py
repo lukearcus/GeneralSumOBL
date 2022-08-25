@@ -11,18 +11,19 @@ class leduc(base):
     ended = False
     pub_card_revealed = False
     num_players = 2
+    num_cards = 6
 
     def __init__(self, _num_players=2):
         random.seed(1)
         self.num_players = _num_players
-        self.num_states = [6*(3+6*3*3), 6*(3+6*3*3)] 
+        self.num_states = [self.num_cards*(3+self.num_cards*3*3), self.num_cards*(3+self.num_cards*3*3)] 
         # 6 possible cards in hand, 3 information states for each player in first round,
         # then 3 possible starting pots for second round & new card in public (one of 5 left)
         self.num_actions = [3 for i in range(self.num_players)] # call/check, raise, fold (sometimes some not allowed)
     
     def start_game(self):
         self.curr_bets = [1 for i in range(self.num_players)]
-        cards_available = list(range(6)) # 6 cards, % 2 for suit, // 2 for number
+        cards_available = list(range(self.num_cards)) # 6 cards, % 2 for suit, // 2 for number
         random.shuffle(cards_available)
         self.cards = cards_available[:self.num_players]
         self.pub_card = cards_available[self.num_players]
@@ -116,16 +117,20 @@ class leduc_int(leduc):
             pot.pop(self.curr_player)
             if pub_card == -1:
                 pot_ind = self.first_poss_pots.index(tuple(pot))
-                return pot_ind*(6)+card, reward
+                return pot_ind*(self.num_cards)+card, reward
             else:
                 end_round1_ind = (self.end_first_bets-1)/2
                 true_second_poss_pots = [tuple([elem+self.end_first_bets for elem in pot]) \
                                          for pot in self.second_poss_pots]
                 pot_ind = true_second_poss_pots.index(tuple(pot))
-                poss_pub_cards = list(range(6))
+                poss_pub_cards = list(range(self.num_cards))
                 poss_pub_cards.pop(card)
-                pub_card_ind = poss_pub_cards.index(pub_card) + 1
-                return int((pub_card_ind)*3*3*6+end_round1_ind*3*6+pot_ind*6+card), reward
+                try:
+                    pub_card_ind = poss_pub_cards.index(pub_card) + 1
+                except ValueError:
+                    import pdb; pdb.set_trace()
+                return int((pub_card_ind)*3*3*self.num_cards\
+                        +end_round1_ind*3*self.num_cards+pot_ind*self.num_cards+card), reward
         else:
             return -1, reward
 
@@ -136,3 +141,64 @@ class leduc_int(leduc):
             super().action("check")
         else:
             super().action("fold")
+
+class leduc_fict(leduc_int):
+    
+    def __init__(self):
+        super().__init__()
+        self.poss_hidden = list(product(list(range(0,self.num_cards)), \
+                                       repeat=self.num_players-1))
+ 
+
+    def set_state(self, p_state, hidden_state, p_id):
+        if self.num_players > 2:
+            raise NotImplementedError
+        else:
+            self.ended = False
+            self.curr_player = p_id
+            self.cards = list(self.poss_hidden[hidden_state])
+            player_card = (p_state % (self.num_cards))
+            self.cards.insert(p_id, player_card)
+            
+            p_pot = (p_state // self.num_cards) % 3
+            
+
+            if p_state > self.num_cards*3:
+                end_round1_ind = (p_state // (self.num_cards*3)) % 3
+                end_round1_bets = (end_round1_ind*2)+1
+                self.end_first_bets = end_round1_bets
+                pub_card_ind = ((p_state // (self.num_cards*3*3)) % 5)-1
+                poss_pub_cards = list(range(self.num_cards))
+                poss_pub_cards.pop(player_card) 
+                self.pub_card = poss_pub_cards[pub_card_ind]
+                if self.pub_card in self.cards:
+                    return -1 # impossible state
+                self.pub_card_revealed = True
+                bets = self.second_poss_pots[p_pot]
+                bets = [bet+end_round1_bets for bet in bets]
+            else:
+                self.pub_card_revealed = False
+                bets = self.first_poss_pots[p_pot]
+
+                pub_card_sel = False
+                while not pub_card_sel:
+                    pub_card = random.randint(0, self.num_cards-1)
+                    if pub_card not in self.cards:
+                        pub_card_sel = True
+                        self.pub_card = pub_card
+                
+
+            self.curr_bets = list(bets)
+            if self.pub_card_revealed:
+                self.curr_bets.insert(p_id, max(end_round1_bets, bets[0]-4))
+            else:
+                self.curr_bets.insert(p_id, max(1, bets[0]-2))
+            
+            self.folded = [False for folded in self.folded]
+            return 0
+
+    def get_hidden(self, p_id):
+        curr_cards = self.cards.copy()
+        curr_cards.pop(p_id)
+        hidden_state = self.poss_hidden.index(tuple(curr_cards))
+        return hidden_state
