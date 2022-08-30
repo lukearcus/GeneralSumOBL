@@ -17,6 +17,25 @@ def play_game(players, game):
         player.wipe_mem()
     return reward
 
+def play_to_convergence(players, game, max_iters=100000, tol=1e-10):
+    old_pol = [None for p in players]
+    for i in range(max_iters):
+        for i, p in enumerate(players):
+            old_pol[i] = np.copy(p.opt_pol)
+        play_game(players, game)
+        converged = True
+        for i, p in enumerate(players):
+            pol_diff = np.linalg.norm(p.opt_pol-old_pol[i])
+            converged = converged and pol_diff <= tol
+            if not converged:
+                break
+        if converged:
+            break
+    if not converged:
+        return -1
+    else:
+        return 0
+
 def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters = 1000, tol=1e-10, exploit_tol = 1e-4):
     new_pols = []
     p_avg_exploitability = [0,0]

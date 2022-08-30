@@ -7,7 +7,6 @@ from functions import *
 import numpy as np
 import sys
 import time
-from tqdm import tqdm
 
 def main():
     if len(sys.argv) > 1:
@@ -40,7 +39,9 @@ def main():
                 print("Please select a game")
                 return(-1)
         else:
-            num_lvls = 10
+            game = Kuhn_Poker_int_io()
+            fict_game = Fict_Kuhn_int()
+            
     else:
         num_lvls = 10
         game = Kuhn_Poker_int_io()
@@ -62,6 +63,7 @@ def main():
                    for p in range(num_players)]
     exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
                                             game.num_actions[0], game.num_states[0], tol=9999) 
+    solver = learners.kuhn_exact_solver()
     #players = [RL(RL_learners[p],p) for p in range(num_players)]
     players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
     fixed_players = [fixed_pol(players[p].opt_pol) for p in range(num_players)]
@@ -119,10 +121,14 @@ def main():
         if lvl % exploit_freq == 0:
             if averaged_pol:
                 exploit, _, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
+                true_exploit, true_br_pols, _, _ = calc_exploitability(new_avg_pols, game, solver,\
+                                                                            num_iters = -1, num_exploit_iters=-1)
             else:
                 exploit, _, _, _ = calc_exploitability(pols, game, exploit_learner)
-            exploitability.append(exploit)
-            print(exploit)
+                true_exploit, true_br_pols, _, _ = calc_exploitability(pols, game, solver,\
+                                                                            num_iters = -1, num_exploit_iters=-1)
+            exploitability.append(true_exploit)
+            print(true_exploit)
         if learn_with_avg:
             for p_id, p in enumerate(players):
                 for other_p_id, other_pol in enumerate(new_avg_pols):
@@ -130,8 +136,9 @@ def main():
                         p.other_players[other_p_id].opt_pol = other_pol
         for p in players:
             p.reset()
-        for i in range(games_per_lvl):
-            reward_hist[lvl][i] = float(play_game(players, game))
+        play_to_convergence(players, game) 
+        #for i in range(games_per_lvl):
+        #    reward_hist[lvl][i] = float(play_game(players, game))
         times.append(time.perf_counter()-tic)
     pols = []
     bels = []
