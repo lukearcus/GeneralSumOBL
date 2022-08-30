@@ -113,6 +113,7 @@ class actor_critic(RL_base):
         super().__init__(extra_samples, init_lr, df)
 
     def reset(self):
+        self.iteration = 0
         self.pol_func.reset()
         self.advantage_func.reset()
 

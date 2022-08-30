@@ -7,8 +7,11 @@ from functions import *
 import numpy as np
 import sys
 import time
+import logging
+log = logging.getLogger(__name__)
 
 def main():
+    logging.basicConfig(level=logging.DEBUG, format='%(relativeCreated)6d %(threadName)s %(message)s')
     if len(sys.argv) > 1:
         if '--lvls' in sys.argv:
             level_ind = sys.argv.index('--lvls')
@@ -98,7 +101,9 @@ def main():
             else:
                 bels.append(np.zeros((1,1)))
         pol_hist.append(pols)
+        log.debug("Policies at lvl "+str(lvl) + ": " + str(pols))
         belief_hist.append(bels)
+        log.debug("Beliefs at lvl "+str(lvl) + ": " + str(bels))
         if averaged_bel:
             new_avg_bels = []
             for p_id, p in enumerate(players):
@@ -109,6 +114,7 @@ def main():
                 p.belief = np.copy(avg_bel)
                 new_avg_bels.append(avg_bel)
             avg_bels.append(new_avg_bels)
+            log.debug("Average beliefs at lvl "+str(lvl) + ": " + str(new_avg_bels))
         if averaged_pol or learn_with_avg:
             new_avg_pols = []
             for p_id, p in enumerate(players):
@@ -118,6 +124,7 @@ def main():
                 avg_pol = total_pol / (lvl+1)
                 new_avg_pols.append(avg_pol)
             avg_pols.append(new_avg_pols)
+            log.debug("Average polices at lvl "+str(lvl) + ": " + str(new_avg_pols))
         if lvl % exploit_freq == 0:
             if averaged_pol:
                 exploit, _, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
@@ -128,7 +135,8 @@ def main():
                 true_exploit, true_br_pols, _, _ = calc_exploitability(pols, game, solver,\
                                                                             num_iters = -1, num_exploit_iters=-1)
             exploitability.append(true_exploit)
-            print(true_exploit)
+            log.info("True exploitability at lvl " + str(lvl) + ": " + str(true_exploit))
+            log.info("Esimated exploitability at lvl " + str(lvl) + ": " + str(exploit))
         if learn_with_avg:
             for p_id, p in enumerate(players):
                 for other_p_id, other_pol in enumerate(new_avg_pols):
@@ -136,7 +144,7 @@ def main():
                         p.other_players[other_p_id].opt_pol = other_pol
         for p in players:
             p.reset()
-        play_to_convergence(players, game) 
+        play_to_convergence(players, game, tol=1e-7) 
         #for i in range(games_per_lvl):
         #    reward_hist[lvl][i] = float(play_game(players, game))
         times.append(time.perf_counter()-tic)
@@ -186,8 +194,8 @@ def main():
     else:
         bel_plot = belief_hist
     plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
-     
-    import pdb; pdb.set_trace()
+    filename="results/OBL"
+    np.savez(filename, pols=pol_plot, bels=bel_plot, explot=exploitability, rewards=reward_hist)
     return 0
 
 if __name__=="__main__":

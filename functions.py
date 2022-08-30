@@ -1,6 +1,7 @@
 from agents.players import RL, fixed_pol
 from agents import learners
 import numpy as np
+import logging
 
 def play_game(players, game):
     game.start_game()
@@ -17,23 +18,27 @@ def play_game(players, game):
         player.wipe_mem()
     return reward
 
-def play_to_convergence(players, game, max_iters=100000, tol=1e-10):
+def play_to_convergence(players, game, max_iters=1000000, tol=1e-5):
     old_pol = [None for p in players]
+    converged_itt = 0
     for i in range(max_iters):
+        converged_itt += 1
         for i, p in enumerate(players):
             old_pol[i] = np.copy(p.opt_pol)
         play_game(players, game)
         converged = True
-        for i, p in enumerate(players):
-            pol_diff = np.linalg.norm(p.opt_pol-old_pol[i])
+        for j, p in enumerate(players):
+            pol_diff = np.linalg.norm(p.opt_pol-old_pol[j])
             converged = converged and pol_diff <= tol
             if not converged:
                 break
         if converged:
             break
     if not converged:
+        logging.warning("Did not Converge")
         return -1
     else:
+        logging.info("Converged after " + str(converged_itt) + " iterations")
         return 0
 
 def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters = 1000, tol=1e-10, exploit_tol = 1e-4):

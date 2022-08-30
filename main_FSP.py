@@ -39,7 +39,7 @@ game_obj = leduc.leduc_int()
 game_obj = KP.Kuhn_Poker_int_io()
 
 RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, game_obj.num_actions[p],\
-                game_obj.num_states[p], init_adv=0, extra_samples = extras)\
+                game_obj.num_states[p], init_adv=0, extra_samples = extras, tol=1e-5)\
                for p in range(2)]
 #RL_learners = [learners.fitted_Q_iteration(0, (game_obj.num_states[p], game_obj.num_actions[p])) for p in range(2)] 
 SL_learners = [learners.count_based_SL((game_obj.num_states[p], game_obj.num_actions[p])) for p in range(2)]
@@ -51,4 +51,5 @@ pi, exploitability, data = worker.run_algo()
 
 FSP_plots(exploitability, worker.est_exploit_freq, [pi], 'kuhn') 
 
-import pdb; pdb.set_trace()
+filename="results/FSP"
+np.savez(filename, pi=pi, exploit=exploitability, extra_data=data)
