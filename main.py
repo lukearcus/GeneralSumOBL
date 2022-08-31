@@ -11,7 +11,6 @@ import logging
 log = logging.getLogger(__name__)
 
 def main():
-    logging.basicConfig(level=logging.DEBUG, format='%(relativeCreated)6d %(threadName)s %(message)s')
     if len(sys.argv) > 1:
         if '--lvls' in sys.argv:
             level_ind = sys.argv.index('--lvls')
@@ -57,6 +56,13 @@ def main():
         averaged_bel ='--avg_bel' in sys.argv or '-ab' in sys.argv
         averaged_pol ='--avg_pol' in sys.argv or '-ap' in sys.argv
         learn_with_avg = '--avg_learn' in sys.argv or '-al' in sys.argv
+    if '--debug' in sys.argv:
+        logging.basicConfig(level=logging.DEBUG,\
+                format='%(relativeCreated)6d %(threadName)s %(message)s')
+    elif '-v' in sys.argv or '--verbose' in sys.argv:
+        logging.basicConfig(level=logging.INFO,\
+                format='%(relativeCreated)6d %(threadName)s %(message)s')
+
     games_per_lvl=100000
     exploit_freq= 1
     
@@ -96,6 +102,10 @@ def main():
         for p in players:
             pols.append(p.opt_pol)
             if p.belief is not None:
+                if learn_with_avg:
+                    for p_id, other_p in enumerate(p.other_players):
+                        if other_p != "me":
+                            other_p.opt_pol = players[p_id].opt_pol
                 p.update_belief()
                 bels.append(np.copy(p.belief))
             else:
@@ -144,7 +154,7 @@ def main():
                         p.other_players[other_p_id].opt_pol = other_pol
         for p in players:
             p.reset()
-        play_to_convergence(players, game, tol=1e-7) 
+        play_to_convergence(players, game, tol=1e-5) 
         #for i in range(games_per_lvl):
         #    reward_hist[lvl][i] = float(play_game(players, game))
         times.append(time.perf_counter()-tic)
@@ -194,7 +204,7 @@ def main():
     else:
         bel_plot = belief_hist
     plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
-    filename="results/OBL"
+    filename="results/OBL_all_average"
     np.savez(filename, pols=pol_plot, bels=bel_plot, explot=exploitability, rewards=reward_hist)
     return 0
 

@@ -111,7 +111,7 @@ class fixed_pol(player):
 class OBL(RL):
     belief = 0
     
-    def __init__(self, learner, player_id, fict_game, belief_iters = 1000):
+    def __init__(self, learner, player_id, fict_game, belief_iters = 10000):
         self.belief_iters = belief_iters
         super().__init__(learner, player_id)
         self.fict_game = fict_game
