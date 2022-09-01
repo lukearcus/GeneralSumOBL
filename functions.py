@@ -32,7 +32,7 @@ def play_to_convergence(players, game, max_iters=1000000, tol=1e-5):
             converged = converged and pol_diff <= tol
             if not converged:
                 break
-        if converged:
+        if converged and i>100:
             break
     if not converged:
         logging.warning("Did not Converge")
@@ -41,7 +41,7 @@ def play_to_convergence(players, game, max_iters=1000000, tol=1e-5):
         logging.info("Converged after " + str(converged_itt) + " iterations")
         return 0
 
-def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters = 1000, tol=1e-10, exploit_tol = 1e-4):
+def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters = 10000, tol=1e-10, exploit_tol = 1e-4):
     new_pols = []
     p_avg_exploitability = [0,0]
     exploit_rewards = [[],[]]
@@ -59,11 +59,11 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
         while True:
             old_pol = np.copy(players[0].opt_pol)
             reward_hist[0].append(float(play_game(players, game)))
-            change[0].append(np.linalg.norm(players[0].opt_pol-old_pol))
+            change[0].append(np.linalg.norm(players[0].opt_pol-old_pol, ord=np.inf))
             i += 1
             if i == num_iters:
                 break
-            elif change[0][-1] <= tol:
+            elif i>100 and change[0][-1] <= tol:
                 break
         
         new_pols.append(players[0].opt_pol)
@@ -97,11 +97,11 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
         while True:
             old_pol = np.copy(players[1].opt_pol)
             reward_hist[1].append(-float(play_game(players, game)))
-            change[1].append(np.linalg.norm(players[1].opt_pol-old_pol))
+            change[1].append(np.linalg.norm(players[1].opt_pol-old_pol, ord=np.inf))
             i += 1
             if i == num_iters:
                 break
-            elif change[1][-1] <= tol:
+            elif i>100 and change[1][-1] <= tol:
                 break
         
         V_2 = learner.advantage_func.V

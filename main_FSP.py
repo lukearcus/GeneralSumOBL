@@ -3,12 +3,11 @@ import games.leduc as leduc
 import games.kuhn as KP
 import matplotlib.pyplot as plt
 import agents.learners as learners
+import UI.get_args as get_args
 from UI.plot_funcs import FSP_plots 
-import logging
 import numpy as np
 
 #sort of working
-logging.basicConfig(level=logging.INFO, format='%(relativeCreated)6d %(threadName)s %(message)s')
 extras = 20
 num_BR = 30
 num_mixed = 10
@@ -24,6 +23,7 @@ time = 36000
 RL_iters = 1
 check_freq = 1
 
+iters, game_obj, _, _, _, _, _, = get_args.run()
 #new test
 #extras = 0
 #Num_BR = 3000
@@ -35,8 +35,8 @@ check_freq = 1
 #pol = np.ones((6,2))/2
 #exact = learners.kuhn_exact_solver(pol,1)
 #import pdb; pdb.set_trace()
-game_obj = leduc.leduc_int()
-game_obj = KP.Kuhn_Poker_int_io()
+#game_obj = leduc.leduc_int()
+#game_obj = KP.Kuhn_Poker_int_io()
 
 RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage, game_obj.num_actions[p],\
                 game_obj.num_states[p], init_adv=0, extra_samples = extras, tol=1e-5)\

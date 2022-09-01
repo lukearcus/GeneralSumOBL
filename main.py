@@ -1,8 +1,7 @@
-from games.kuhn import *
-from games.leduc import *
 from agents.players import *
 import agents.learners as learners
 from UI.plot_funcs import plot_everything
+import UI.get_args as get_args
 from functions import *
 import numpy as np
 import sys
@@ -11,57 +10,8 @@ import logging
 log = logging.getLogger(__name__)
 
 def main():
-    if len(sys.argv) > 1:
-        if '--lvls' in sys.argv:
-            level_ind = sys.argv.index('--lvls')
-            if len(sys.argv) > level_ind:
-                try:
-                    num_lvls = int(sys.argv[level_ind+1])
-                except TypeError:
-                    print("Please enter a numerical value for number of levels")
-                    return -1
-            else:
-                print("Please enter number of levels")
-                return(-1)
-        else:
-            num_lvls = 10
-        if '--game' in sys.argv:
-            game_ind = sys.argv.index('--game')
-            if len(sys.argv) > game_ind:
-                if sys.argv[game_ind+1] == "kuhn":
-                    game = Kuhn_Poker_int_io()
-                    fict_game = Fict_Kuhn_int()
-                elif sys.argv[game_ind+1] == "leduc":
-                    game = leduc_int()
-                    fict_game = leduc_fict() 
-                else:
-                    print("Please enter a game choice")
-                    return -1
-            else:
-                print("Please select a game")
-                return(-1)
-        else:
-            game = Kuhn_Poker_int_io()
-            fict_game = Fict_Kuhn_int()
-            
-    else:
-        num_lvls = 10
-        game = Kuhn_Poker_int_io()
-        fict_game = Fict_Kuhn_int()
-    if '--all_avg' in sys.argv or '-a' in sys.argv:
-        averaged_bel = True
-        averaged_pol = True
-        learn_with_avg = True
-    else:
-        averaged_bel ='--avg_bel' in sys.argv or '-ab' in sys.argv
-        averaged_pol ='--avg_pol' in sys.argv or '-ap' in sys.argv
-        learn_with_avg = '--avg_learn' in sys.argv or '-al' in sys.argv
-    if '--debug' in sys.argv:
-        logging.basicConfig(level=logging.DEBUG,\
-                format='%(relativeCreated)6d %(threadName)s %(message)s')
-    elif '-v' in sys.argv or '--verbose' in sys.argv:
-        logging.basicConfig(level=logging.INFO,\
-                format='%(relativeCreated)6d %(threadName)s %(message)s')
+
+    num_lvls, game, fict_game, exploit_learner, averaged_bel, averaged_pol, learn_with_avg = get_args.run() 
 
     games_per_lvl=100000
     exploit_freq= 1
@@ -70,9 +20,6 @@ def main():
     RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage,\
                    game.num_actions[p], game.num_states[p], extra_samples = 0)\
                    for p in range(num_players)]
-    exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
-                                            game.num_actions[0], game.num_states[0], tol=9999) 
-    solver = learners.kuhn_exact_solver()
     #players = [RL(RL_learners[p],p) for p in range(num_players)]
     players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
     fixed_players = [fixed_pol(players[p].opt_pol) for p in range(num_players)]
@@ -138,15 +85,10 @@ def main():
         if lvl % exploit_freq == 0:
             if averaged_pol:
                 exploit, _, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
-                true_exploit, true_br_pols, _, _ = calc_exploitability(new_avg_pols, game, solver,\
-                                                                            num_iters = -1, num_exploit_iters=-1)
             else:
                 exploit, _, _, _ = calc_exploitability(pols, game, exploit_learner)
-                true_exploit, true_br_pols, _, _ = calc_exploitability(pols, game, solver,\
-                                                                            num_iters = -1, num_exploit_iters=-1)
-            exploitability.append(true_exploit)
-            log.info("True exploitability at lvl " + str(lvl) + ": " + str(true_exploit))
-            log.info("Esimated exploitability at lvl " + str(lvl) + ": " + str(exploit))
+            exploitability.append(exploit)
+            log.info("Exploitability at lvl " + str(lvl) + ": " + str(exploit))
         if learn_with_avg:
             for p_id, p in enumerate(players):
                 for other_p_id, other_pol in enumerate(new_avg_pols):
@@ -154,7 +96,7 @@ def main():
                         p.other_players[other_p_id].opt_pol = other_pol
         for p in players:
             p.reset()
-        play_to_convergence(players, game, tol=1e-5) 
+        play_to_convergence(players, game, tol=1e-7) 
         #for i in range(games_per_lvl):
         #    reward_hist[lvl][i] = float(play_game(players, game))
         times.append(time.perf_counter()-tic)
