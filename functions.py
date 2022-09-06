@@ -23,12 +23,13 @@ def play_to_convergence(players, game, max_iters=1000000, tol=1e-5):
     converged_itt = 0
     for i in range(max_iters):
         converged_itt += 1
-        for i, p in enumerate(players):
-            old_pol[i] = np.copy(p.opt_pol)
+        for k, p in enumerate(players):
+            old_pol[k] = np.copy(p.opt_pol)
         play_game(players, game)
         converged = True
         for j, p in enumerate(players):
-            pol_diff = np.linalg.norm(p.opt_pol-old_pol[j])
+            pol_diff = np.linalg.norm(p.opt_pol-old_pol[j],ord=np.inf)
+            logging.debug("Iteration "+str(i) + " diff " + str(pol_diff))
             converged = converged and pol_diff <= tol
             if not converged:
                 break

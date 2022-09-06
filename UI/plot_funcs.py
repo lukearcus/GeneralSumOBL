@@ -25,9 +25,7 @@ def plot_everything(pols, bels, game, reward, exploitability):
         fig2 = plt.figure()
         ax = fig2.subplots()
         reward_smoothed(reward, ax)
-        fig3 = plt.figure()
-        ax = fig3.subplots()
-        ax.plot(exploitability)
+        exploitability_plot(exploitability, 1) 
     else:
         multiple_heatmaps(pols, fig, game + "_policy")
         fig.suptitle('Policies', fontsize=32)
@@ -86,11 +84,18 @@ def plot_heatmap(im, ax, label_name, overlay_vals=False):
         for (j,i),label in np.ndenumerate(im):
             ax.text(i,j,np.round(label,2),ha='center',va='center')
 
-def exploitability_plot(exploitability, exploit_freq):
-    plt.plot(np.arange(0, len(exploitability)*exploit_freq, exploit_freq), exploitability)
-    plt.xlabel("Iteration")
-    plt.ylabel("Exploitability")
-    plt.title("Exploitability vs Iteration")
+def exploitability_plot(exploitability, exploit_freq, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    iters = np.arange(0, len(exploitability)*exploit_freq, exploit_freq)
+    ax.plot(iters, exploitability)
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Exploitability")
+    ax.set_title("Exploitability vs Iteration")
+    inset = ax.inset_axes([0.5,0.5,0.45,0.4])
+    inset.loglog(iters, exploitability)
+    
+    
 
 def FSP_plots(exploitability, exploit_freq, pols, game):
     exploitability_plot(exploitability, exploit_freq)
