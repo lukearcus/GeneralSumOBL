@@ -88,12 +88,10 @@ def exploitability_plot(exploitability, exploit_freq, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
     iters = np.arange(0, len(exploitability)*exploit_freq, exploit_freq)
-    ax.plot(iters, exploitability)
+    ax.loglog(iters, exploitability)
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Exploitability")
     ax.set_title("Exploitability vs Iteration")
-    inset = ax.inset_axes([0.5,0.5,0.45,0.4])
-    inset.loglog(iters, exploitability)
     
     
 

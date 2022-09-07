@@ -113,9 +113,12 @@ class OBL(RL):
     
     def __init__(self, learner, player_id, fict_game, belief_iters = 10000):
         self.belief_iters = belief_iters
+        self.belief_buff = []
+        self.pol_buff = []
         super().__init__(learner, player_id)
         self.fict_game = fict_game
-    
+        self.avg_pol = np.ones_like(self.opt_pol)/self.opt_pol.shape[1]    
+
     def set_other_players(self, other_players):
         self.other_players = other_players.copy()
         self.other_players.insert(self.id, "me")
@@ -159,11 +162,8 @@ class OBL(RL):
         probs = self.opt_pol[self.state, :]
         act = np.argmax(np.random.multinomial(1, pvals=probs))
         return act
-
-    def update_belief(self):
-        num_hidden = len(self.fict_game.poss_hidden)
-        num_states = self.opt_pol.shape[0]
-        new_belief = np.ones((num_states, num_hidden))
+    
+    def add_to_mem(self):
         for i in range(self.belief_iters):
             self.fict_game.start_game()
             while not self.fict_game.ended:
@@ -173,9 +173,34 @@ class OBL(RL):
                 else:
                     player = self.other_players[p_id]
                 player.observe(self.fict_game.observe(), fict=True)
-                self.fict_game.action(player.action())
+                act = player.action()
+                self.fict_game.action(act)
                 if p_id == self.id:
                     hidden_state = self.fict_game.get_hidden(self.id)
-                    new_belief[self.state, hidden_state] += 1
+                    self.belief_buff.append({'s':self.state, 'hidden':hidden_state})
+                    self.pol_buff.append({'s':self.state, 'a':act, 'probs':self.opt_pol[self.state, :]}) 
+
+    def update_belief(self):
+        num_hidden = len(self.fict_game.poss_hidden)
+        num_states = self.opt_pol.shape[0]
+        new_belief = np.ones((num_states, num_hidden))
+        for elem in self.belief_buff:
+            new_belief[elem['s'], elem['hidden']] += 1
         new_belief /= np.sum(new_belief,1,keepdims=True)
         self.belief = new_belief
+    
+    def learn_avg_pol(self):
+        N = np.zeros(self.opt_pol.shape)
+        for elem in self.pol_buff:
+            state = elem['s']
+            N[state,:] += elem['probs']
+        pi = N/np.sum(N,axis=1)[:,np.newaxis]
+        for i, s in enumerate(pi):
+            if np.all(np.isnan(s)):
+                pi[i] = np.ones(s.shape)/s.size
+        self.avg_pol = pi
+
+    def update_mem_and_bel(self):
+        self.add_to_mem()
+        self.update_belief()
+        self.learn_avg_pol()

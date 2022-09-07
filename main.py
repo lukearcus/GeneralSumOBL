@@ -53,7 +53,9 @@ def main():
                     for p_id, other_p in enumerate(p.other_players):
                         if other_p != "me":
                             other_p.opt_pol = players[p_id].opt_pol
-                p.update_belief()
+                if averaged_bel:
+                    p.belief_buff = []
+                p.update_mem_and_bel()
                 bels.append(np.copy(p.belief))
             else:
                 bels.append(np.zeros((1,1)))
@@ -61,25 +63,10 @@ def main():
         log.debug("Policies at lvl "+str(lvl) + ": " + str(pols))
         belief_hist.append(bels)
         log.debug("Beliefs at lvl "+str(lvl) + ": " + str(bels))
-        if averaged_bel:
-            new_avg_bels = []
-            for p_id, p in enumerate(players):
-                total_bel = np.zeros_like(belief_hist[0][p_id])
-                for i in range(lvl+1):
-                    total_bel += belief_hist[i][p_id]
-                avg_bel = total_bel / (lvl+1)
-                p.belief = np.copy(avg_bel)
-                new_avg_bels.append(avg_bel)
-            avg_bels.append(new_avg_bels)
-            log.debug("Average beliefs at lvl "+str(lvl) + ": " + str(new_avg_bels))
         if averaged_pol or learn_with_avg:
             new_avg_pols = []
-            for p_id, p in enumerate(players):
-                total_pol = np.zeros_like(pol_hist[0][p_id])
-                for i in range(lvl+1):
-                    total_pol += pol_hist[i][p_id]
-                avg_pol = total_pol / (lvl+1)
-                new_avg_pols.append(avg_pol)
+            for p in players:
+                new_avg_pols.append(p.avg_pol)
             avg_pols.append(new_avg_pols)
             log.debug("Average polices at lvl "+str(lvl) + ": " + str(new_avg_pols))
         if lvl % exploit_freq == 0:
@@ -105,30 +92,19 @@ def main():
     for p in players:
         pols.append(p.opt_pol)
         if p.belief is not None:
-            p.update_belief()
+            if not averaged_bel:
+                p.belief_buff = []
+            p.update_mem_and_bel()
             bels.append(p.belief)
         else:
             bels.append(np.zeros((1,1)))
     pol_hist.append(pols)
     belief_hist.append(bels)
     
-    if averaged_bel:
-        new_avg_bels = []
-        for p_id, p in enumerate(players):
-            total_bel = np.zeros_like(belief_hist[0][p_id])
-            for i in range(lvl+1):
-                total_bel += belief_hist[i][p_id]
-            avg_bel = total_bel / (lvl+1)
-            new_avg_bels.append(avg_bel)
-        avg_bels.append(new_avg_bels)
     if averaged_pol:
         new_avg_pols = []
-        for p_id, p in enumerate(players):
-            total_pol = np.zeros_like(pol_hist[0][p_id])
-            for i in range(lvl+1):
-                total_pol += pol_hist[i][p_id]
-            avg_pol = total_pol / (lvl+1)
-            new_avg_pols.append(avg_pol)
+        for p in players:
+            new_avg_pols.append(p.avg_pol)
         avg_pols.append(new_avg_pols)
         exploit, _, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
     else:
@@ -141,10 +117,7 @@ def main():
         pol_plot = avg_pols
     else:
         pol_plot = pol_hist
-    if averaged_bel:
-        bel_plot = avg_bels
-    else:
-        bel_plot = belief_hist
+    bel_plot = belief_hist
     plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
     filename="results/OBL_all_average"
     np.savez(filename, pols=pol_plot, bels=bel_plot, explot=exploitability, rewards=reward_hist)
