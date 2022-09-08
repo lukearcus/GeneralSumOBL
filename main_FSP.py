@@ -23,7 +23,9 @@ time = 36000
 RL_iters = 1
 check_freq = 1
 
-iters, game_obj, _, _, _, _, _, = get_args.run()
+opts = get_args.run()
+iters = opts["num_lvls"]
+game_obj = opts["game"]
 #new test
 #extras = 0
 #Num_BR = 3000
