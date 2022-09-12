@@ -31,6 +31,11 @@ class RL_base(learner_base):
             if len(self.memory) > self.max_mem:
                 self.memory.pop(0)
 
+    def entropy(self, state):
+        probs = self.opt_pol[state]
+        ent = -np.sum(probs*np.log(probs))
+        return ent
+
 class SL_base(learner_base):
     learned_pol = None
     memory = []
@@ -106,7 +111,7 @@ class actor_critic(RL_base):
 
     def __init__(self, pol_func, advantage_func, num_actions, num_states, init_adv = 0, extra_samples=10, init_lr=0.05, df=1.0, tol=999):
         self.pol_func = pol_func(num_states, num_actions)
-        self.advantage_func = advantage_func(init_adv, num_states, num_actions, df)
+        self.advantage_func = advantage_func(init_adv, num_states, num_actions, df, self.entropy)
         self.opt_pol = self.pol_func.policy
         self.memory = []
         self.tol=tol
@@ -156,7 +161,7 @@ class pol_func_base:
 
 class advantage_func_base:
 
-    def __init__(self, init_adv, num_states, num_actions):
+    def __init__(self, init_adv, num_states, num_actions, df, ent_calc):
         raise NotImplementedError
 
     def eval(self, s, a, r, s_prime):
@@ -221,7 +226,7 @@ class linpol(pol_func_base):
 
 class Q_advantage(advantage_func_base):
     
-    def __init__(self, init_adv, num_states, num_actions, df):
+    def __init__(self, init_adv, num_states, num_actions, df, ent_calc):
         self.Q = np.ones((num_states, num_actions))*init_adv
         self.V = np.ones(num_states)*init_adv
         self.init_adv = init_adv
@@ -250,7 +255,7 @@ class Q_advantage(advantage_func_base):
 
 class Q_actor_critic(advantage_func_base):
 
-    def __init__(self, init_adv, num_states, num_actions, df):
+    def __init__(self, init_adv, num_states, num_actions, df, ent_calc):
         self.Q = np.ones((num_states, num_actions))*init_adv
         self.init_adv = init_adv
         self.gamma = df
@@ -274,16 +279,17 @@ class Q_actor_critic(advantage_func_base):
 
 class value_advantage(advantage_func_base):
 
-    def __init__(self, init_adv, num_states, _, df):
+    def __init__(self, init_adv, num_states, _, df, ent_calc):
         self.V = np.ones(num_states)*init_adv
         self.init_adv = init_adv
         self.gamma = df
+        self.entropy = ent_calc
 
     def eval(self, s, a, r, s_prime):
         if s_prime == -1:
-            advantage = r - self.V[s]
+            advantage = r + self.entropy(s) - self.V[s]
         else:
-            advantage = r - self.V[s] + self.gamma*self.V[s_prime]
+            advantage = r + self.entropy(s)- self.V[s] + self.gamma*self.V[s_prime]
         return advantage
 
     def update(self, update, s, _):
