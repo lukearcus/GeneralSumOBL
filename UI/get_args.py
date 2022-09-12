@@ -25,11 +25,12 @@ def run():
         if '--game' in sys.argv:
             game_ind = sys.argv.index('--game')
             if len(sys.argv) > game_ind:
-                if sys.argv[game_ind+1] == "kuhn":
+                game_name = sys.argv[game_ind+1]
+                if game_name  == "kuhn":
                     game = Kuhn_Poker_int_io()
                     fict_game = Fict_Kuhn_int()
                     exploit_learner = learners.kuhn_exact_solver()
-                elif sys.argv[game_ind+1] == "leduc":
+                elif game_name == "leduc":
                     game = leduc_int()
                     fict_game = leduc_fict()
                     exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
@@ -41,6 +42,7 @@ def run():
                 print("Please select a game")
                 return(-1)
         else:
+            game_name = "kuhn"
             game = Kuhn_Poker_int_io()
             fict_game = Fict_Kuhn_int()
             exploit_learner = learners.kuhn_exact_solver()
@@ -71,6 +73,7 @@ def run():
     else:
         learner_type = "rl"
     opts = {"num_lvls":num_lvls,
+            "game_name":game_name,
             "game":game,
             "fict_game":fict_game,
             "exploit_learner":exploit_learner,

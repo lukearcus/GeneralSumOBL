@@ -87,7 +87,7 @@ def plot_heatmap(im, ax, label_name, overlay_vals=False):
 def exploitability_plot(exploitability, exploit_freq, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
-    iters = np.arange(0, len(exploitability)*exploit_freq, exploit_freq)
+    iters = np.arange(1, (len(exploitability)+1)*exploit_freq, exploit_freq)
     ax.loglog(iters, exploitability)
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Exploitability")

@@ -13,6 +13,7 @@ def main():
 
     options = get_args.run() 
     num_lvls = options["num_lvls"]
+    game_name = options["game_name"]
     game = options["game"]
     fict_game = options["fict_game"]
     exploit_learner = options["exploit_learner"]
@@ -73,7 +74,7 @@ def main():
                     for p_id, other_p in enumerate(p.other_players):
                         if other_p != "me":
                             other_p.opt_pol = players[p_id].opt_pol
-                if averaged_bel:
+                if not averaged_bel:
                     p.belief_buff = []
                 p.update_mem_and_bel()
                 bels.append(np.copy(p.belief))
@@ -137,7 +138,7 @@ def main():
             else:
                 pol_hist.append(pols)
                 exploit, _, _, _ = calc_exploitability(pols, game, exploit_learner)
-            exploitability.append(exploit) 
+            exploitability.append(exploit)
     else:
         if averaged_pol:
             new_avg_pols = []
@@ -155,8 +156,8 @@ def main():
         pol_plot = pol_hist
     bel_plot = belief_hist
     plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
-    filename="results/OBL_all_average"
-    np.savez(filename, pols=pol_plot, bels=bel_plot, explot=exploitability, rewards=reward_hist)
+    filename="results/" + game_name +  "_" + learner_type + "_" + str(num_lvls) + "lvls"
+    np.savez(filename, pols=pol_plot, bels=bel_plot, exploit=exploitability, rewards=reward_hist)
     return 0
 
 if __name__=="__main__":
