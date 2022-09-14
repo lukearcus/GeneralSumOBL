@@ -66,8 +66,13 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
                 break
             elif i>100 and change[0][-1] <= tol:
                 break
-        
-        new_pols.append(players[0].opt_pol)
+        converged_pol = players[0].opt_pol + np.random.random(players[0].opt_pol.shape)/1000
+        opt_deterministic = np.array(np.invert(np.array(converged_pol-\
+                                     np.max(converged_pol, axis=1,keepdims=True),\
+                                     dtype=bool)),\
+                                     dtype=float)
+        new_pols.append(opt_deterministic)
+        #new_pols.append(players[0].opt_pol)
         V_1 = learner.advantage_func.V
     
     players = [fixed_pol(new_pols[0]), fixed_pol(pol[1])]
@@ -106,7 +111,13 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
                 break
         
         V_2 = learner.advantage_func.V
-        new_pols.append(players[1].opt_pol)
+        converged_pol = players[1].opt_pol + np.random.random(players[1].opt_pol.shape)/1000
+        opt_deterministic = np.array(np.invert(np.array(converged_pol-\
+                                     np.max(converged_pol, axis=1,keepdims=True),\
+                                     dtype=bool)),\
+                                     dtype=float)
+        new_pols.append(opt_deterministic)
+        #new_pols.append(players[1].opt_pol)
         learner.reset()
         learner.wipe_memory()
     players = [fixed_pol(pol[0]), fixed_pol(new_pols[1])]

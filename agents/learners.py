@@ -23,6 +23,7 @@ class RL_base(learner_base):
         self.gamma = df
         self.init_lr = init_lr
         self.max_mem = 100000
+        self.eval = False
 
     def update_memory(self, data):
         self.last_round = len(data)
@@ -77,10 +78,13 @@ class fitted_Q_iteration(RL_base):
         super().__init__(extra_samples, init_lr, df)
     
     def calc_pol(self):
-        beta = np.zeros(self.Q.shape)
-        for i, s in enumerate(self.Q):
-            beta[i, :] = np.exp(self.Q[i]/self.T)
-            beta[i, :] /= np.sum(beta[i])
+        if self.eval:
+            beta = np.array(np.array(self.Q-np.min(self.Q, axis=1,keepdims=True),dtype=bool),dtype=float)
+        else:
+            beta = np.zeros(self.Q.shape)
+            for i, s in enumerate(self.Q):
+                beta[i, :] = np.exp(self.Q[i]/self.T)
+                beta[i, :] /= np.sum(beta[i])
         self.opt_pol = beta
 
     def learn(self):

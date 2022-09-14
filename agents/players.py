@@ -216,7 +216,7 @@ class OBL(RL):
 class OT_RL(RL):
     belief = 0
     
-    def __init__(self, learner, player_id, fict_game, belief_iters = 10000, averaging="inf_state"):
+    def __init__(self, learner, player_id, fict_game, belief_iters = 10000, averaging="FSP_style"):
         self.curr_lvl = 0
         self.belief_iters = belief_iters
         self.belief_buff = []
@@ -230,6 +230,7 @@ class OT_RL(RL):
         self.fict_game = fict_game
         self.beliefs = []
         self.avg_pol = np.ones_like(self.opt_pol)/self.opt_pol.shape[1]    
+        self.curr_opp_lvl = 0
         self.learn_avg = averaging == "FSP_style"
 
     def set_other_players(self, other_players):
@@ -261,8 +262,11 @@ class OT_RL(RL):
                         curr_player = self.other_players[self.fict_game.curr_player]
                         other_p_obs = self.fict_game.observe()
                         curr_player.observe(other_p_obs, fict=True)
-                        
-                        other_p_act = curr_player.action(lvl)
+                        if lvl > 0:
+                            opp_lvl = np.random.randint(lvl)
+                        else:
+                            opp_lvl = 0
+                        other_p_act = curr_player.action(opp_lvl)
                         self.fict_game.action(other_p_act)
                     next_obs = self.fict_game.observe()
                     s_prime = next_obs[0]
@@ -273,16 +277,18 @@ class OT_RL(RL):
                     self.learner[lvl].update_memory([(self.buffer[lvl], None)])
                     self.pols[lvl+1] = self.learner[lvl].learn()
                 self.opt_pol = self.pols[self.curr_lvl]
-                
+                self.curr_opp_lvl = np.random.randint(self.curr_lvl)
+
     def action(self, lvl=-1):
         if lvl == -1:
             probs = self.opt_pol[self.state, :]
         else:
-            if self.learn_avg:
-                probs = self.avg_pols[lvl][self.state, :]
-            else:
-                avg_pol = sum(self.pols[:lvl+1])/(lvl+1)
-                probs = avg_pol[self.state,:]
+            probs = self.pols[lvl][self.state, :]
+            #if self.learn_avg:
+            #    probs = self.avg_pols[lvl][self.state, :]
+            #else:
+            #    avg_pol = sum(self.pols[:lvl+1])/(lvl+1)
+            #    probs = avg_pol[self.state,:]
         act = np.argmax(np.random.multinomial(1, pvals=probs))
         return act
     
@@ -340,7 +346,6 @@ class OT_RL(RL):
         if self.curr_lvl < len(self.learner):
             self.opt_pol = self.learner[self.curr_lvl].opt_pol
 
-    
     def wipe_mem(self):
         super().wipe_mem()
         self.buffer = [[] for i in range(self.curr_lvl+1)]

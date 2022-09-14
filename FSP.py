@@ -55,10 +55,12 @@ class FSP:
         if isinstance(self.game, kuhn):
             exploit_learner = learners.kuhn_exact_solver()
         else:
-            exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
-                                                self.game.num_actions[0], self.game.num_states[0]) 
+            exploit_learner = learners.fitted_Q_iteration(0, (self.game.num_states, self.game.num_actions)) 
+            #exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
+            #                                    self.game.num_actions[0], self.game.num_states[0]) 
 
         for j in range(1,self.max_iters): # start from 1 or 2?
+            log.info("Iteration " + str(j))
             eta_j = 1/j
             #eta_j = 1/2
             D, curr_exploitability, sigma = self.gen_data(pi[-1],beta[-1], eta_j)

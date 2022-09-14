@@ -65,6 +65,7 @@ def main():
     times = []
     tic = time.perf_counter()
     for lvl in range(num_lvls):
+        log.info("Level: " + str(lvl))
         pols = []
         bels = []
         for p in players:
@@ -81,23 +82,23 @@ def main():
             else:
                 bels.append(np.zeros((1,1)))
         pol_hist.append(pols)
-        log.debug("Policies at lvl "+str(lvl) + ": " + str(pols))
+        log.debug("Policies: " + str(pols))
         belief_hist.append(bels)
-        log.debug("Beliefs at lvl "+str(lvl) + ": " + str(bels))
+        log.debug("Beliefs: " + str(bels))
         if averaged_pol or learn_with_avg:
             new_avg_pols = []
             for p in players:
                 if learner_type != "rl":
                     new_avg_pols.append(p.avg_pol)
             avg_pols.append(new_avg_pols)
-            log.debug("Average polices at lvl "+str(lvl) + ": " + str(new_avg_pols))
+            log.debug("Average polices: " + str(new_avg_pols))
         if lvl % exploit_freq == 0 and learner_type != "ot_rl":
             if averaged_pol:
                 exploit, _, _, _ = calc_exploitability(new_avg_pols, game, exploit_learner)
             else:
                 exploit, _, _, _ = calc_exploitability(pols, game, exploit_learner)
             exploitability.append(exploit)
-            log.info("Exploitability at lvl " + str(lvl) + ": " + str(exploit))
+            log.info("Exploitability: " + str(exploit))
         if learn_with_avg:
             for p_id, p in enumerate(players):
                 for other_p_id, other_pol in enumerate(new_avg_pols):
