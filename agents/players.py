@@ -232,6 +232,7 @@ class OT_RL(RL):
         self.avg_pol = np.ones_like(self.opt_pol)/self.opt_pol.shape[1]    
         self.curr_opp_lvl = 0
         self.learn_avg = averaging == "FSP_style"
+        self.ot_lvls = 10
 
     def set_other_players(self, other_players):
         self.other_players = other_players.copy()
@@ -242,7 +243,7 @@ class OT_RL(RL):
         self.r = observation[1]
         if not fict:
             if self.state != -1:
-                for lvl in range(self.curr_lvl):
+                for lvl in range(max(self.curr_lvl - self.ot_lvls, 0),self.curr_lvl):
                     belief_probs = self.beliefs[lvl][self.state, :]
                     #Here we do OBL
                     res = -1
@@ -273,7 +274,7 @@ class OT_RL(RL):
                     r = next_obs[1]
                     self.buffer[lvl].append({"s":self.state, "a": act, "r":r, "s'":s_prime})
             else:
-                for lvl in range(self.curr_lvl):
+                for lvl in range(max(self.curr_lvl - self.ot_lvls, 0), self.curr_lvl):
                     self.learner[lvl].update_memory([(self.buffer[lvl], None)])
                     self.pols[lvl+1] = self.learner[lvl].learn()
                 self.opt_pol = self.pols[self.curr_lvl]
@@ -295,6 +296,7 @@ class OT_RL(RL):
     def add_to_mem(self):
         for i in range(self.belief_iters):
             self.fict_game.start_game()
+            lvl = np.random.randint(self.curr_lvl)
             while not self.fict_game.ended:
                 p_id = self.fict_game.curr_player
                 if p_id == self.id:
@@ -302,7 +304,7 @@ class OT_RL(RL):
                 else:
                     player = self.other_players[p_id]
                 player.observe(self.fict_game.observe(), fict=True)
-                act = player.action()
+                act = player.action(lvl)
                 self.fict_game.action(act)
                 if p_id == self.id:
                     hidden_state = self.fict_game.get_hidden(self.id)

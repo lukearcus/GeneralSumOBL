@@ -17,13 +17,13 @@ class learner_base:
 class RL_base(learner_base):
     opt_pol = None
     memory = []
-    
+    eval = False
+
     def __init__(self, extra_samples, init_lr, df):
         self.extra_samples = extra_samples
         self.gamma = df
         self.init_lr = init_lr
         self.max_mem = 100000
-        self.eval = False
 
     def update_memory(self, data):
         self.last_round = len(data)
@@ -113,12 +113,13 @@ class fitted_Q_iteration(RL_base):
 
 class actor_critic(RL_base):
 
-    def __init__(self, pol_func, advantage_func, num_actions, num_states, init_adv = 0, extra_samples=10, init_lr=0.05, df=1.0, tol=999):
+    def __init__(self, pol_func, advantage_func, num_actions, num_states, init_adv = 0, extra_samples=10, init_lr=0.05, df=1.0, tol=999, max_iters = 10**0):
         self.pol_func = pol_func(num_states, num_actions)
         self.advantage_func = advantage_func(init_adv, num_states, num_actions, df, self.entropy)
         self.opt_pol = self.pol_func.policy
         self.memory = []
         self.tol=tol
+        self.max_iters = max_iters
         super().__init__(extra_samples, init_lr, df)
 
     def reset(self):
@@ -131,6 +132,7 @@ class actor_critic(RL_base):
         self.iteration += 1
         lr = self.init_lr/(1+0.003*np.sqrt(self.iteration))
         prev_pol = np.copy(self.opt_pol) - self.tol - 1
+        itt = 0
         while np.linalg.norm(prev_pol - self.opt_pol) > self.tol:
             prev_pol = np.copy(self.opt_pol)
             RL_buff = random.sample(self.memory, min(self.extra_samples, len(self.memory)))
@@ -145,6 +147,9 @@ class actor_critic(RL_base):
                 self.advantage_func.update(lr*delta, elem["s"], elem["a"])
                 self.pol_func.thetas += lr*theta_update
             self.opt_pol = self.pol_func.update()
+            itt += 1
+            if itt > self.max_iters:
+                break
         return self.opt_pol
 
 class pol_func_base:

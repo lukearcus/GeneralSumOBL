@@ -55,10 +55,10 @@ class FSP:
         if isinstance(self.game, kuhn):
             exploit_learner = learners.kuhn_exact_solver()
         else:
-            exploit_learner = learners.fitted_Q_iteration(0, (self.game.num_states, self.game.num_actions)) 
-            #exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
-            #                                    self.game.num_actions[0], self.game.num_states[0]) 
-
+            #exploit_learner = learners.fitted_Q_iteration(0, (self.game.num_states[0], self.game.num_actions[0])) 
+            exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
+                                                self.game.num_actions[0], self.game.num_states[0]) 
+        times = []
         for j in range(1,self.max_iters): # start from 1 or 2?
             log.info("Iteration " + str(j))
             eta_j = 1/j
@@ -86,13 +86,14 @@ class FSP:
                 results = {'true' : [], 'est':[], 'beta': []}
                 
                 exploit, br_pols, _, values = calc_exploitability(new_pi, self.game, exploit_learner,\
-                                                                            num_iters = -1, num_exploit_iters=-1)
+                                                                            num_iters = 10**4, num_exploit_iters=10**4)
                 log.info("exploitability: " + str(exploit))
                 exploitability.append(exploit)
             toc = time.perf_counter()
+            times.append(toc-tic)
             if toc-tic > self.max_time:
                 break
-        return pi[-1], exploitability, {'pi': pi, 'beta':beta, 'D': D}
+        return pi[-1], exploitability, {'pi': pi, 'beta':beta, 'D': D, 'times':times}
 
     def play_game(self, strat):
         buffer = [[] for i in range(self.num_players)]
