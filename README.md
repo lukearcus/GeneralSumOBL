@@ -2,7 +2,7 @@
 
 run main.py for rl, obl or ot-rl. Run main\_FSP.py for fictitious self play, the following options can be used for either (although some will not have any effect on FSP).
 
-options:
+##options##
 
 	**--lvls** LEVELS
 
@@ -43,3 +43,17 @@ options:
 	**--ot_rl**
 
 		Uses OT-RL to learn, updates lower level policies based on the distribution induced in higher levels.
+
+Example usage:
+	python main.py -a -v --obl --lvls 5
+
+##Dependencies##
+
+
+# Name
+
+matplotlib	
+
+numpy
+
+scipy
