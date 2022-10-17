@@ -24,7 +24,7 @@ class FSP:
         #import pdb; pdb.set_trace()
         sigma = []
         for p in range(self.num_players):
-            sigma.append((1-eta)*pi[p]+eta*beta[p])
+            sigma.append((1-eta)*pi[p]+eta*beta[p]) # this step might be wrong
         D = [[] for i in range(self.num_players)]
         for i in range(self.n):
             res = self.play_game(sigma)

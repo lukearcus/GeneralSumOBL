@@ -9,7 +9,7 @@ import time
 import logging
 from multiprocessing import Pool
 log = logging.getLogger(__name__)
-NUM_LOOPS=10
+NUM_LOOPS=1
 
 def run(options, games_per_lvl=100000, exploit_freq= 1):
         num_lvls = options["num_lvls"]
