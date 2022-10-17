@@ -2,7 +2,7 @@
 
 run main.py for rl, obl or ot-rl. Run main\_FSP.py for fictitious self play, the following options can be used for either (although some will not have any effect on FSP).
 
-##options##
+## options ##
 
 	**--lvls** LEVELS
 
@@ -47,10 +47,10 @@ run main.py for rl, obl or ot-rl. Run main\_FSP.py for fictitious self play, the
 Example usage:
 	python main.py -a -v --obl --lvls 5
 
-##Dependencies##
+## Dependencies ##
 
 
-# Name
+### Name
 
 matplotlib	
 
