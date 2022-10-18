@@ -24,7 +24,7 @@ RL_iters = 1
 check_freq = 1
 
 opts = get_args.run()
-NUM_LOOPS = 10
+NUM_LOOPS = 1
 res = []
 for i in range(NUM_LOOPS):
     iters = opts["num_lvls"]

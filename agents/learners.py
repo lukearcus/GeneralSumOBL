@@ -322,7 +322,7 @@ class complete_learner:
         self.SL_learner.update_memory(data)
 
     def learn(self):
-        self.RL_learner.reset()
+        #self.RL_learner.reset()
         for i in range(self.num_loops):
             self.beta = self.RL_learner.learn()
         self.pi = self.SL_learner.learn()
