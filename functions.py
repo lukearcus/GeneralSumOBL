@@ -4,6 +4,9 @@ import numpy as np
 import logging
 
 def play_game(players, game):
+    """
+    Play chosen game until the end.
+    """
     game.start_game()
     while not game.ended:
         player = players[game.curr_player]
@@ -19,6 +22,9 @@ def play_game(players, game):
     return reward
 
 def play_to_convergence(players, game, max_iters=1000000, tol=1e-5):
+    """
+    Play chosen game repeatedly until players' policies have converged
+    """
     old_pol = [None for p in players]
     converged_itt = 0
     for i in range(max_iters):
@@ -43,6 +49,9 @@ def play_to_convergence(players, game, max_iters=1000000, tol=1e-5):
         return 0
 
 def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters = 10000, tol=1e-10, exploit_tol = 1e-4):
+    """
+    Calculate exploitability of current policies, pol, using a learner (either an RL learner or a true best response if available
+    """
     new_pols = []
     p_avg_exploitability = [0,0]
     exploit_rewards = [[],[]]

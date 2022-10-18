@@ -11,7 +11,7 @@ from multiprocessing import Pool
 import OBL
 import FSP
 log = logging.getLogger(__name__)
-NUM_LOOPS=1
+NUM_LOOPS=1 # Change this to run multiple seeds (in parallel)
 
 
 def main():
