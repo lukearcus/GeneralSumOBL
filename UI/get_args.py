@@ -66,12 +66,19 @@ def run():
     elif '-v' in sys.argv or '--verbose' in sys.argv:
         logging.basicConfig(level=logging.INFO,\
                 format='%(relativeCreated)6d %(threadName)s %(message)s')
-    if '--obl' in sys.argv:
-        learner_type = "obl"
-    elif '--ot_rl' in sys.argv:
-        learner_type = "ot_rl"
+    if '--learner' in sys.argv:
+        learn_ind = sys.argv.index('--learner')
+        if len(sys.argv) > learn_ind:
+            learner_type = sys.argv[learn_ind+1]
+        else:
+            print("Please select a learner")
+            return(-1)
     else:
-        learner_type = "rl"
+        learner_type='obl'
+    if '--fsp' in sys.argv:
+        mode = 'fsp'
+    else:
+        mode = 'obl'
     opts = {"num_lvls":num_lvls,
             "game_name":game_name,
             "game":game,
@@ -81,5 +88,6 @@ def run():
             "avg_pol":averaged_pol,
             "learn_w_avg":learn_with_avg,
             "learner_type":learner_type,
+            "mode":mode
             }
     return opts 

@@ -36,13 +36,16 @@ run main.py for rl, obl or ot-rl. Run main\_FSP.py for fictitious self play, the
 
 		Prints out some information about progress.
 
+	**--learner** LEARNER_CHOICE
+		
+		Choose learner from rl, ot_rl or obl, for learning uising obl. Defaults to obl	
+
+	**--fsp**
+
+		Uses FSP to learn nash, obl is default.
+
 	**--obl**
-
-		Uses OBL to learn.
-
-	**--ot_rl**
-
-		Uses OT-RL to learn, updates lower level policies based on the distribution induced in higher levels.
+		Uses obl/rl/ot_rl.
 
 Example usage:
 	python main.py -a -v --obl --lvls 5
